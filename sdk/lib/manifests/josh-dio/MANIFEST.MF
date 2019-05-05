@@ -1,0 +1,5 @@
+API: JOSHDIO
+API-Name: JOSH Device I/O API
+API-Type: Optional
+API-Specification-Version: 1.0
+

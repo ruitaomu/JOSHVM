@@ -1,0 +1,5 @@
+API: JOSHCellular
+API-Name: JOSH Cellular API
+API-Type: Optional
+API-Specification-Version: 1.0
+

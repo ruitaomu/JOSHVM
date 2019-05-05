@@ -1,0 +1,5 @@
+API: JSR75
+API-Name: File Connection API
+API-Type: Optional
+API-Specification-Version: 1.0
+

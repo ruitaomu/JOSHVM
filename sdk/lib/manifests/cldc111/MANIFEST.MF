@@ -1,0 +1,5 @@
+API: CLDC
+API-Name: Connected Limited Device Configuration
+API-Type: Configuration
+API-Specification-Version: 1.1.1
+

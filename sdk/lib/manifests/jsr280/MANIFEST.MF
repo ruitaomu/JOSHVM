@@ -1,0 +1,5 @@
+API: JSR280
+API-Name: XML API
+API-Type: Optional
+API-Specification-Version: 1.0
+

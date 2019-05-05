@@ -1,0 +1,5 @@
+API: GCF
+API-Name: Generic Connection Framework
+API-Type: Optional
+API-Specification-Version: 1.0
+

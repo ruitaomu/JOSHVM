@@ -1,0 +1,5 @@
+API: JOSHSensor
+API-Name: JOSH Sensor API
+API-Type: Optional
+API-Specification-Version: 1.0
+

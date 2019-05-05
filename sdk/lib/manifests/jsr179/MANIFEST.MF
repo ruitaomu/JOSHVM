@@ -1,0 +1,5 @@
+API: JSR179
+API-Name: Location API
+API-Type: Optional
+API-Specification-Version: 1.0
+

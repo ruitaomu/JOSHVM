@@ -1,0 +1,5 @@
+API: WMA
+API-Name: Wireless Messaging API
+API-Type: Optional
+API-Specification-Version: 1.1
+
