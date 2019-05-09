@@ -1,0 +1,73 @@
+# Copyright (C) Max Mu
+# DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER
+# 
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# version 2, as published by the Free Software Foundation.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License version 2 for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+# 
+# Please visit www.joshvm.org if you need additional information or
+# have any questions.
+
+ifeq ($(findstring CYGWIN, $(shell uname)), CYGWIN)
+exe_suffix := .exe
+host_platform := win32
+host_compiler := vc
+else
+ifeq ($(findstring Linux, $(shell uname)), Linux)
+exe_suffix :=
+host_platform := linux
+host_compiler := gcc
+else
+$(error This Tests Makefile should be built under CYGWIN or LINUX)
+endif
+endif
+
+jtargets := $(addsuffix .class, $(main_target))
+jarfile  := $(addsuffix .jar, $(jar_name))
+generated_dir := generated
+preverified_dir := preverified
+preverify_exe_path := ../../preverifier/build/$(host_platform)
+preverify_exe := $(preverify_exe_path)/preverify$(exe_suffix)
+JAVAC := $(JDK_DIR)/bin/javac
+JAR := $(JDK_DIR)/bin/jar
+
+all: $(generated_dir) $(jtargets) preverify
+
+preverify: $(generated_dir) $(jtargets) $(preverify_exe)
+	$(preverify_exe) -classpath ../../cldc/build/classes.zip -d $(preverified_dir) $(generated_dir)
+	
+package: $(JAR) preverify
+	$(JAR) cvf $(jarfile) -C $(preverified_dir) .
+	
+$(jtargets): %.class: %.java $(JAVAC)
+	$(JAVAC) -bootclasspath ../../cldc/build/classes.zip $(extra_source_path) -source 1.4 -target 1.4 -d $(generated_dir) $<
+	
+$(generated_dir):
+	mkdir $(generated_dir)
+	
+$(preverify_exe):
+	@echo "Building Preverify ..."
+	cd $(preverify_exe_path) && make
+	
+$(JAVAC):
+	$(error JDK_DIR must be set! Usage example: "JDK_DIR=/path/to/your_jdk_home_dir make")
+	
+$(JAR):
+	$(error JDK_DIR must be set! Usage example: "JDK_DIR=/path/to/your_jdk_home_dir make package")
+	
+clean:
+	rm -rf $(preverified_dir)
+	rm -rf $(generated_dir)
+	rm -f $(jarfile)
+	
+run:
+	../../cldc/build/javacall_i386_$(host_compiler)/dist/bin/cldc_vm -int -cp $(preverified_dir) $(main_target)
