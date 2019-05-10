@@ -3,7 +3,7 @@
 
 #include "javacall_logging.h"
 
-#define USE_CONSOLE_OUTPUT 0
+#define USE_CONSOLE_OUTPUT 1
 
 #ifdef __cplusplus
 extern "C" {
