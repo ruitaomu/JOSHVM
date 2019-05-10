@@ -1,0 +1,147 @@
+#Flag USE_JSR_XX means that JSR_XX will be included to the javacall library if the flag
+#is set to 'true' (example: USE_JSR_XX=true). JSR_XX will not be included to the javacall
+#library if the flag USE_JSR_XX is not 'true' (example: USE_JSR_XX=false). 
+#
+#For each used JSR path to its particular implementation shall be specified explicitly as javacall
+#library can be formed from JSRs taken from different locations
+#JSR_XX_JC_IMPL_PATH varibale sets path to implementation 
+#
+#For 'midp' USE_MIDP and MIDP_JC_IMPL_PATH variables are used
+#For 'nams' USE_NATIVE_AMS_JC and NATIVE_AMS_JC_IMPL_PATH variables are used
+
+#JSR_LIST = CLDC JSR_120 JSR_135 JSR_177 JSR_211
+JSR_LIST = CLDC
+ifeq ($(ENABLE_JSR_120), true)
+JSR_LIST += JSR_120
+USE_JSR_120=true
+endif
+ifeq ($(ENABLE_JSR_75), true)
+JSR_LIST += JSR_75
+USE_JSR_75=true
+endif
+ifeq ($(ENABLE_DIO), true)
+JSR_LIST += DIO
+USE_DIO=true
+endif
+ifeq ($(ENABLE_CELLULAR), true)
+JSR_LIST += CELLULAR
+USE_CELLULAR=true
+endif
+
+ifeq ($(ENABLE_DIRECTUI), true)
+JSR_LIST += DIRECTUI
+USE_DIRECTUI=true
+endif
+
+USE_CLDC=true
+USE_MIDP=false
+
+JC_Platform=esp32
+CLDC_JC_IMPL_PATH=$(JAVACALL_COMM_DIR)/implementation/$(JC_Platform)
+
+JSR_120_JC_IMPL_PATH=$(JAVACALL_COMM_DIR)/implementation/$(JC_Platform)
+
+JSR_135_JC_IMPL_PATH=$(JAVACALL_COMM_DIR)/implementation/$(JC_Platform)
+
+JSR_177_JC_IMPL_PATH=$(JAVACALL_COMM_DIR)/implementation/$(JC_Platform)
+
+JSR_75_JC_IMPL_PATH=$(JAVACALL_COMM_DIR)/implementation/$(JC_Platform)
+
+DIO_JC_IMPL_PATH=$(JAVACALL_COMM_DIR)/implementation/$(JC_Platform)
+
+CELLULAR_JC_IMPL_PATH=$(JAVACALL_COMM_DIR)/implementation/$(JC_Platform)
+
+DIRECTUI_JC_IMPL_PATH=$(JAVACALL_COMM_DIR)/implementation/$(JC_Platform)
+
+ifeq ($(USE_NATIVE_AMS_JC),)
+USE_NATIVE_AMS_JC=false
+endif
+
+ifeq ($(USE_DIRECTUI),true)
+SPECIFIC_DEFINITIONS+= -DENABLE_DIRECTUI=1
+endif
+
+# Switch native AMS function on/off
+ifeq ($(USE_NATIVE_AMS_JC), true)
+
+JSR_LIST += NATIVE_AMS
+NATIVE_AMS_JC_IMPL_PATH = $(JAVACALL_COMM_DIR)/implementation/$(JC_Platform)
+SPECIFIC_DEFINITIONS += -DENABLE_NATIVE_AMS=1
+
+else
+
+SPECIFIC_DEFINITIONS += -DENABLE_NATIVE_AMS=0
+
+endif
+
+ifeq ($(ENABLE_TEST), true)
+JSR_LIST += TEST
+USE_TEST=true
+TEST_JC_IMPL_PATH=$(JAVACALL_COMM_DIR)/implementation/$(JC_Platform)
+endif
+
+#For each project location for basic definitions shall be specified
+#(location of the used javacall_platform_defs.h)
+JAVACALL_PLATFORM_DEFS_DIR=$(JAVACALL_COMM_DIR)/implementation/$(JC_Platform)
+
+SOURCE_OUTPUT_LIST += $(JAVACALL_PLATFORM_DEFS_DIR)/javacall_platform_defs.h javacall/implementation/$(JC_Platform)
+SOURCE_OUTPUT_LIST += $(foreach jsr,$(JSR_LIST), $(if $(PREFIX_$(USE_$(jsr))), $($(jsr)_JC_IMPL_PATH)/$($(jsr)_JC_DIR) javacall/implementation/$(JC_Platform)))
+
+# Enable multiple runMidlet instances running on the same machine
+# Setting this to TRUE disables remote control of running runMidlet instance
+# implemented vie interprocess communication
+#
+USE_MULTIPLE_INSTANCES=true
+
+#Specify list of utility objects necessary for the build
+UTILITIES =                 \
+        javautil_jad_parser \
+        javautil_string \
+	javautil_unicode
+
+#Compile options that are not common for all configurations can be specified in
+#SPECIFIC_DEFINITIONS variable
+SPECIFIC_DEFINITIONS += -I$(PLATFORM_DIR)/joshvm/build/include \
+-I$(PLATFORM_DIR)/esp-idf/components/esp32/include \
+-I$(PLATFORM_DIR)/esp-idf/components/freertos/include \
+-I$(PLATFORM_DIR)/esp-idf/components/log/include \
+-I$(PLATFORM_DIR)/esp-idf/components/driver/include \
+-I$(PLATFORM_DIR)/esp-idf/components/soc/include \
+-I$(PLATFORM_DIR)/esp-idf/components/soc/esp32/include \
+-I$(PLATFORM_DIR)/esp-idf/components/heap/include \
+-I$(PLATFORM_DIR)/esp-idf/components/vfs/include \
+-I$(PLATFORM_DIR)/esp-idf/components/lwip/include/lwip \
+-I$(PLATFORM_DIR)/esp-idf/components/lwip/include/lwip/port \
+-I$(PLATFORM_DIR)/esp-idf/components/newlib/platform_include \
+-I$(PLATFORM_DIR)/esp-idf/components/nvs_flash/include \
+-I$(PLATFORM_DIR)/esp-idf/components/spi_flash/include \
+-I$(PLATFORM_DIR)/esp-idf/components/tcpip_adapter/include \
+-I$(PLATFORM_DIR)/esp-idf/components/spiffs/include
+
+SPECIFIC_DEFINITIONS += -O0 -ffunction-sections -fdata-sections -fstrict-volatile-bitfields -mlongcalls -nostdlib -Wextra -Wno-unused-parameter -Wno-sign-compare -fno-exceptions -mfix-esp32-psram-cache-issue -fno-strict-aliasing -fno-strict-overflow
+
+ifeq ($(USE_JSR_120),true)
+SPECIFIC_DEFINITIONS+= -DENABLE_JSR_120=1 
+endif
+
+ifeq ($(USE_JSR_75),true)
+SPECIFIC_DEFINITIONS+= -DENABLE_JSR_75=1 
+endif
+
+ifeq ($(USE_DIO),true)
+SPECIFIC_DEFINITIONS+= -DENABLE_DIO=1 
+endif
+
+ifeq ($(USE_CELLULAR),true)
+SPECIFIC_DEFINITIONS+= -DENABLE_CELLULAR=1 
+endif
+
+ifeq ($(USE_MULTIPLE_INSTANCES),true)
+SPECIFIC_DEFINITIONS+=-DENABLE_MULTIPLE_INSTANCES=1
+endif
+
+# NEED REVISIT: provide pure solution without hidden dependencies
+ifeq ($(ENABLE_HIDDEN_DEP_FEATURES),true)
+SPECIFIC_DEFINITIONS+=-DENABLE_HIDDEN_DEP_FEATURES
+endif # ifeq ($(ENABLE_HIDDEN_DEP_FEATURES),true)
+
