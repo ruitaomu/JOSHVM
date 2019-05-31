@@ -123,12 +123,7 @@ javacall_dio_result javacall_spi_open(javacall_int32 busNumber,
 		return JAVACALL_DIO_FAIL;
 	}
 #endif
-	javacall_printf("javacall_spi_open:\n \
-					clockFrequencey = %d\n \
-					clockMode = %d\n \
-					csActive = %d\n \
-					devcfg.flags = 0x%x\n \
-					bufcfg.flags = 0x%x\n",
+	javacall_logging_printf(JAVACALL_LOGGING_INFORMATION, JC_DAAPI, "javacall_spi_open: clockFrequencey = %d, clockMode = %d, csActive = %d, devcfg.flags = 0x%x, bufcfg.flags = 0x%x\n",
 					clockFrequency, clockMode, csActive,  
 					devcfg.flags, buscfg.flags);
 	*pHandle = spi;
@@ -141,7 +136,7 @@ void javacall_spi_close(javacall_handle handle) {
 	spi_bus_remove_device((spi_device_handle_t)handle);
 	
 	if ((ret = spi_bus_free(HSPI_HOST)) != ESP_OK) {
-		javacall_printf("javacall_spi_close: spi_bus_free failed, error code %d\n", ret);
+		javacall_logging_printf(JAVACALL_LOGGING_ERROR, JC_DAAPI,"javacall_spi_close: spi_bus_free failed, error code %d\n", ret);
 	}
 #if 0
 	if (TxBuf) {
@@ -154,7 +149,6 @@ void javacall_spi_close(javacall_handle handle) {
 		RxBuf = NULL;
 	}
 #endif
-	javacall_printf("javaall_spi_close");
 	return;
 }
 
@@ -235,7 +229,7 @@ int javacall_spi_send_and_receive_sync(javacall_handle handle,const char* pTxBuf
 			transfered += toTransfer;
 			//queue++;
 		} else {
-			javacall_printf("javacall_spi_send_and_receive: spi transmit %d bytes failed for reason %d, after %d bytes transfered\n", toTransfer, ret, transfered);
+			//javacall_printf("javacall_spi_send_and_receive: spi transmit %d bytes failed for reason %d, after %d bytes transfered\n", toTransfer, ret, transfered);
 			if (transfered == 0) {
 				return -1;
 			} else {

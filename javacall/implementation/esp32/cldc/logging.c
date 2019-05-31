@@ -3,7 +3,7 @@
 
 #include "javacall_logging.h"
 
-#define USE_CONSOLE_OUTPUT 1
+#define USE_CONSOLE_OUTPUT 0
 
 #ifdef __cplusplus
 extern "C" {
@@ -13,7 +13,7 @@ extern "C" {
 #include "javacall_serial.h"
 #endif
 
-static int JAVACALL_REPORT_LEVEL = JAVACALL_REPORT_LEVEL_DEFAULT;
+static int JAVACALL_REPORT_LEVEL = JAVACALL_LOGGING_INFORMATION;
     
 static int _enable_log_output = 1;
 static int _init_log = 0;

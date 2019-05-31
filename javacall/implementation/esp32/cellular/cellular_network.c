@@ -65,7 +65,7 @@ javacall_const_ascii_string javacall_cellular_get_imei(javacall_int32 subscriber
 	static char mac_addr[19];
 	esp_wifi_get_mac(ESP_IF_WIFI_STA, mac);
 	snprintf(mac_addr, 18, "%02x:%02x:%02x:%02x:%02x:%02x", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-	javacall_printf("MAC: %s\n", mac_addr);
+	//javacall_printf("MAC: %s\n", mac_addr);
 	return mac_addr;
 }
 
