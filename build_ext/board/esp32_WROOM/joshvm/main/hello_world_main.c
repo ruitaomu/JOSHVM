@@ -128,6 +128,7 @@ void app_main()
 	heap_caps_print_heap_info(MALLOC_CAP_DEFAULT);
 	heap_caps_print_heap_info(MALLOC_CAP_INTERNAL);
 	heap_caps_print_heap_info(MALLOC_CAP_SPIRAM);
+	heap_caps_print_heap_info(MALLOC_CAP_DMA);
 	
 	test_spiffs("/appdb/unsecure", "unsecadb", "/appdb/unsecure/hello.txt", "/appdb/unsecure/foo.txt");
 	test_spiffs("/appdb/secure", "secadb", "/appdb/secure/hello.txt", "/appdb/secure/foo.txt");
