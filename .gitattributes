@@ -5,6 +5,7 @@
 *.cs     diff=csharp
 
 *.sh     text eol=lf
+sdkconfig	text eol=lf
 
 # Standard to msysgit
 *.doc	 diff=astextplain
