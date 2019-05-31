@@ -175,7 +175,8 @@ int close_socket(javacall_handle handle){
 	SetFD(handle, -1);
 	FreeHandle(handle);
 	if (!IsInvalidFD(fd)) {
-		lwip_close(fd);
+		int ret = closesocket(fd);
+		javacall_logging_printf(JAVACALL_LOGGING_INFORMATION, JC_NETWORK, "close_socket: handle %d closed, returns %d\n", fd, ret);
 	} else {
 		javacall_logging_printf(JAVACALL_LOGGING_WARNING, JC_NETWORK, "close_socket: Invalid handle\n");
 	}
@@ -184,7 +185,7 @@ int close_socket(javacall_handle handle){
 
 static int socket_available(int fd){
 	int value = -1;
-	if (0 == lwip_ioctl(fd, FIONREAD, &value)) {
+	if (0 == ioctlsocket(fd, FIONREAD, &value)) {
 		return value;
 	} else {
 		return -1;
@@ -193,24 +194,37 @@ static int socket_available(int fd){
 
 static javacall_result getHostByName_blocking(javacall_handle handle) {
 	struct hostent *he;
+	struct hostent host;
+	int err;
+	char *buf;
 	gethostbyname_evt_t* pEvt = (gethostbyname_evt_t*)handle;
-
-	he = lwip_gethostbyname(pEvt->hostname);
+	int buflen = 32 + strlen(pEvt->hostname) + 1 + (MEM_ALIGNMENT - 1);
 	
-	if (!he){
-		javacall_logging_printf(JAVACALL_LOGGING_ERROR, JC_NETWORK, "javacall_network_gethostbyname_start: JAVACALL_FAIL\n"); 
+	buf = malloc(buflen);
+	if (buf == NULL) {
+		javacall_logging_printf(JAVACALL_LOGGING_ERROR, JC_NETWORK, "javacall_network_gethostbyname_start failed, memory not enough\n"); 
+		return JAVACALL_FAIL;
+	}
+
+	int ret = gethostbyname_r(pEvt->hostname, &host, buf, buflen, &he, &err);
+	
+	if (ret != 0){
+		javacall_logging_printf(JAVACALL_LOGGING_ERROR, JC_NETWORK, "javacall_network_gethostbyname_start failed, error=%d\n", err); 
+		free(buf);
 		return JAVACALL_FAIL;
 	}
 
 	int addrLen = sizeof(ip4_addr_t);
     if (addrLen > MAX_HOST_ADDR_LENGTH) {
 		javacall_logging_printf(JAVACALL_LOGGING_ERROR, JC_NETWORK, "javacall_network_gethostbyname_start: too long address length: %d\n", addrLen);
+		free(buf);
         return JAVACALL_INVALID_ARGUMENT;
     }
 
     pEvt->h_length = addrLen;
 	memcpy(pEvt->addr, he->h_addr, addrLen);
 	pEvt->h_addrtype = he->h_addrtype;
+	free(buf);
 	
 	return JAVACALL_OK;
 }
@@ -326,20 +340,22 @@ javacall_result javacall_socket_open(javacall_ip_version ip_version,
 
 	*pHandle = AllocHandle();
 	if (!*pHandle) {
+		javacall_logging_printf(JAVACALL_LOGGING_ERROR, JC_NETWORK, "javacall_socket_open() failed to allocate handle\n");
 		return JAVACALL_FAIL;
 	}
 
-	fd = lwip_socket(AF_INET, SOCK_STREAM, 0);
+	fd = socket(AF_INET, SOCK_STREAM, 0);
+	SetFD(*pHandle, fd);
 	if (fd == -1) {
+		javacall_logging_printf(JAVACALL_LOGGING_ERROR, JC_NETWORK, "javacall_socket_open() failed to create socket, errno %d\n", errno);
 		return JAVACALL_FAIL;
 	}	
 	
-	javacall_logging_printf(JAVACALL_LOGGING_INFORMATION, JC_NETWORK, "javacall_socket_open() returns handle=%p, fd=%d\n", *pHandle, fd);
-	SetFD(*pHandle, fd);		
+	javacall_logging_printf(JAVACALL_LOGGING_INFORMATION, JC_NETWORK, "javacall_socket_open() returns handle=%p, fd=%d\n", *pHandle, fd);		
 
 	//make socket non-blocking
-	flags = lwip_fcntl(fd, F_GETFL, 0); 
-	status = lwip_fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+	flags = fcntl(fd, F_GETFL, 0); 
+	status = fcntl(fd, F_SETFL, flags | O_NONBLOCK);
 	if(status == -1) {
 		close_socket(*pHandle);
 		return JAVACALL_FAIL;
@@ -399,7 +415,7 @@ javacall_result javacall_socket_connect_start(
 	addr.sin_port        = PP_HTONS((unsigned short)port);
 
 	memcpy((char*)&addr.sin_addr, (char*)ipBytes, addr_len);
-	status = lwip_connect(fd, (struct sockaddr *)&addr, sizeof(addr));
+	status = connect(fd, (struct sockaddr *)&addr, sizeof(addr));
 	
 	*pContext = NULL;
 
@@ -453,7 +469,7 @@ static int socket_read_common(void *handle,
 		return JAVACALL_FAIL;
 	}
 
-    bytesRead = lwip_recv(fd, (char*)pData, len, 0);
+    bytesRead = recv(fd, (char*)pData, len, 0);
 	//javacall_printf("socket_read_common: fd=%d, %d, %s\n", *fd, lastError, strerror(lastError));
 
     if (bytesRead != -1) {
@@ -528,7 +544,7 @@ static int socket_write_common(void *handle,
 		return JAVACALL_FAIL;
 	}
 
-    bytesSent = lwip_send(fd, pData, len, 0);
+    bytesSent = send(fd, pData, len, 0);
     javacall_logging_printf(JAVACALL_LOGGING_INFORMATION, JC_NETWORK, "socket_write_common(): write %d of %d\n", bytesSent, len);
 
     if (bytesSent != -1) {
@@ -645,7 +661,7 @@ javacall_result javacall_socket_close_start(void *handle, javacall_bool abort,
 		return JAVACALL_OK;
 	}
 
-	lwip_shutdown(fd, SHUT_RDWR);
+	shutdown(fd, SHUT_RDWR);
 
     if (close_socket(handle) == 0) {
 		//javacall_printf("javacall_socket_close_start: JAVACALL_OK\n");
@@ -713,7 +729,7 @@ javacall_result javacall_network_gethostbyname_start(char *hostname,
 
 	*pHandle = p;
 
-	javacall_printf("javacall_network_gethostbyname_start: handle=%d\n", p);
+	//javacall_printf("javacall_network_gethostbyname_start: handle=%d\n", p);
 
 	if (set_event_observer(*pHandle, EVENT_FD_GETHOSTBYNAME)) {
 		free(p->hostname);
@@ -746,16 +762,16 @@ javacall_result javacall_network_gethostbyname_finish(
 	gethostbyname_evt_t* pEvt = (gethostbyname_evt_t*)handle;
 
 	if ((pEvt->h_addrtype == AF_INET) && (ip_version == JAVACALL_IP_VERSION_6)) {
-		javacall_printf("javacall_network_gethostbyname_finish: Expected IPv6 but got IPv4\n");
+		javacall_logging_printf(JAVACALL_LOGGING_ERROR, JC_NETWORK, "javacall_network_gethostbyname_finish: Expected IPv6 but got IPv4\n");
 	} else if ((pEvt->h_addrtype == AF_INET6) && (ip_version == JAVACALL_IP_VERSION_4)) {
-		javacall_printf("javacall_network_gethostbyname_finish: Expected IPv4 but got IPv6\n");
+		javacall_logging_printf(JAVACALL_LOGGING_ERROR, JC_NETWORK, "javacall_network_gethostbyname_finish: Expected IPv4 but got IPv6\n");
 	} else if (maxLen < pEvt->h_length) {
-		javacall_printf("javacall_network_gethostbyname_finish: Buffer not enough for host addr\n");
+		javacall_logging_printf(JAVACALL_LOGGING_ERROR, JC_NETWORK, "javacall_network_gethostbyname_finish: Buffer not enough for host addr\n");
 	} else {
 	    *pLen = pEvt->h_length;
 	    memcpy(pAddress, pEvt->addr, *pLen);
 		result = JAVACALL_OK;
-		javacall_printf("javacall_network_gethostbyname_finish: JAVACALL_OK\n");
+		javacall_logging_printf(JAVACALL_LOGGING_INFORMATION, JC_NETWORK, "javacall_network_gethostbyname_finish: JAVACALL_OK\n");
 	}
 
 	free(pEvt->hostname);
@@ -892,9 +908,7 @@ javacall_result javacall_network_finalize_finish(void)
 int javacall_network_error(void *handle){
 
    //javacall_printf("javacall_network_error: trace\n");
-   
-   (void)handle;
-    return 0;
+    return errno;
 }
 
 
@@ -993,7 +1007,7 @@ javacall_result /*OPTIONAL*/ javacall_socket_getlocalport(
     int saLen = sizeof (sa);
 
     sa.sin_family = AF_INET;
-    status = lwip_getsockname(fd, (struct sockaddr*)&sa, &saLen);
+    status = getsockname(fd, (struct sockaddr*)&sa, &saLen);
 
     if (status == -1) {
 		//javacall_printf("javacall_socket_getlocalport: JAVACALL_FAIL\n");
