@@ -29,32 +29,30 @@ static const int CLOSE = 0;
 #define UART_PIN_TYPE_RTS 2
 #define UART_PIN_TYPE_CTS 3
 
-#define SUPPORTED_UART_NUM 2
+#define SUPPORTED_UART_NUM 3
 #define PLATFORM_PORT_0 ((javacall_handle)0)
 #define PLATFORM_PORT_1 ((javacall_handle)1)
+#define PLATFORM_PORT_2 ((javacall_handle)2)
 
-static uart_port_t comm_ports[SUPPORTED_UART_NUM] = {UART_NUM_1, UART_NUM_2};
-static int comm_state[SUPPORTED_UART_NUM] = {0, 0};
+
+static uart_port_t comm_ports[SUPPORTED_UART_NUM] = {UART_NUM_0, UART_NUM_1, UART_NUM_2};
+static int comm_state[SUPPORTED_UART_NUM] = {0, 0, 0};
 static int comm_pins[SUPPORTED_UART_NUM][4] = {
-								{
-#if ENABLE_ESP32_VOICE_SUPPORT									
-									GPIO_NUM_4, GPIO_NUM_12, 
+								{UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE},
+#if ENABLE_ESP32_VOICE_SUPPORT
+								{GPIO_NUM_4, GPIO_NUM_12, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE},
 #else
-									GPIO_NUM_4, GPIO_NUM_5, 
+								{GPIO_NUM_4, GPIO_NUM_15, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE},
 #endif
-									UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE},
-								{
-#if ENABLE_ESP32_VOICE_SUPPORT									
-									GPIO_NUM_13, GPIO_NUM_15, 
+#if ENABLE_ESP32_VOICE_SUPPORT
+								{GPIO_NUM_13, GPIO_NUM_15, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE}
 #else
-									GPIO_NUM_26, GPIO_NUM_27, 
+								{GPIO_NUM_26, GPIO_NUM_27, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE}
 #endif
-
-									UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE}
 							};
 
-static QueueHandle_t comm_queue1, comm_queue2;
-static QueueHandle_t* comm_queues[SUPPORTED_UART_NUM] = {&comm_queue1, &comm_queue2};
+static QueueHandle_t comm_queue0, comm_queue1, comm_queue2;
+static QueueHandle_t* comm_queues[SUPPORTED_UART_NUM] = {&comm_queue0, &comm_queue1, &comm_queue2};
 
 #define BUF_SIZE (1024)
 #define RD_BUF_SIZE (BUF_SIZE)
@@ -310,8 +308,10 @@ javacall_serial_open_start(const char *devName, int baudRate, unsigned int optio
 		
 	} else if (!strcmp(devName, "COM1") && !is_comm_state_open(PLATFORM_PORT_1)) {
 		handle = PLATFORM_PORT_1;
+	} else if (!strcmp(devName, "COM2") && !is_comm_state_open(PLATFORM_PORT_2)) {
+		handle = PLATFORM_PORT_2;
 	} else {
-		javacall_logging_printf(JAVACALL_LOGGING_ERROR, JC_SERIAL, "Serial port open failed: %d\n", PLATFORM_PORT_1);
+		javacall_logging_printf(JAVACALL_LOGGING_ERROR, JC_SERIAL, "Serial port open failed: %s\n", devName);
 		return JAVACALL_FAIL;
 	}
 
