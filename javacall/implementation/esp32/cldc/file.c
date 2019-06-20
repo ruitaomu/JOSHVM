@@ -71,7 +71,7 @@ static javacall_result mount_partition(const char* mount_point, const char* part
     esp_vfs_spiffs_conf_t conf = {
       .base_path = mount_point,
       .partition_label = partition_label,
-      .max_files = 10,
+      .max_files = 256,
       .format_if_mount_failed = true
     };
     

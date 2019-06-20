@@ -7,3 +7,4 @@ PROJECT_NAME := joshvm
 
 include $(IDF_PATH)/make/project.mk
 
+$(eval $(call spiffs_create_partition_image,unsecadb,settings,FLASH_IN_PROJECT))

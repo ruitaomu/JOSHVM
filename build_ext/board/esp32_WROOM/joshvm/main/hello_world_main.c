@@ -22,15 +22,16 @@
 
 static const char *TAG = "example";
 
-void test_spiffs(const char* mount_point, const char* partition_label, const char* file_name1, const char* file_name2)
+static int exist_spiffs(const char* mount_point, const char* partition_label, const char* file_name)
 {
-	ESP_LOGI(TAG, "test_spiffs: %s, %s, %s, %s", mount_point, partition_label, file_name1, file_name2);
-    ESP_LOGI(TAG, "Initializing SPIFFS");
+	int result;
+	
+	printf("exist_spiffs: %s, %s, %s\n", mount_point, partition_label, file_name);
     
     esp_vfs_spiffs_conf_t conf = {
       .base_path = mount_point,
       .partition_label = partition_label,
-      .max_files = 10,
+      .max_files = 256,
       .format_if_mount_failed = true
     };
     
@@ -40,69 +41,90 @@ void test_spiffs(const char* mount_point, const char* partition_label, const cha
 
     if (ret != ESP_OK) {
         if (ret == ESP_FAIL) {
-            ESP_LOGE(TAG, "Failed to mount or format filesystem");
+            printf("Failed to mount or format filesystem\n");
         } else if (ret == ESP_ERR_NOT_FOUND) {
-            ESP_LOGE(TAG, "Failed to find SPIFFS partition");
+            printf("Failed to find SPIFFS partition\n");
         } else {
-            ESP_LOGE(TAG, "Failed to initialize SPIFFS (%s)", esp_err_to_name(ret));
+            printf("Failed to initialize SPIFFS (%s)\n", esp_err_to_name(ret));
         }
-        return;
+        return 0;
     }
     
     size_t total = 0, used = 0;
     ret = esp_spiffs_info(partition_label, &total, &used);
     if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to get SPIFFS partition information (%s)", esp_err_to_name(ret));
+        printf("Failed to get SPIFFS partition information (%s)\n", esp_err_to_name(ret));
     } else {
-        ESP_LOGI(TAG, "Partition size: total: %d, used: %d", total, used);
+        printf("Partition size: total: %d, used: %d\n", total, used);
     }
 
-    // Use POSIX and C standard library functions to work with files.
-    // First create a file.
-    ESP_LOGI(TAG, "Opening file for writing: %s", file_name1);
-    FILE* f = fopen(file_name1, "w+");
-    if (f == NULL) {
-        ESP_LOGE(TAG, "Failed to open file for writing");
+    // Check if destination file exists before renaming
+    struct stat st;
+    if (stat(file_name, &st) == 0) {  
+		printf("%s exists\n", file_name);
+		result = 1;
+    } else {
+		printf("%s doesn't exist\n", file_name);
+		result = 0;
+	}
+
+    // All done, unmount partition and disable SPIFFS
+    esp_vfs_spiffs_unregister(partition_label);
+	
+	return result;
+}
+
+static void rename_spiffs(const char* mount_point, const char* partition_label, const char* file_name1, const char* file_name2)
+{
+	printf("rename_spiffs: %s, %s, %s -> %s\n", mount_point, partition_label, file_name1, file_name2);
+    
+    esp_vfs_spiffs_conf_t conf = {
+      .base_path = mount_point,
+      .partition_label = partition_label,
+      .max_files = 256,
+      .format_if_mount_failed = true
+    };
+    
+    // Use settings defined above to initialize and mount SPIFFS filesystem.
+    // Note: esp_vfs_spiffs_register is an all-in-one convenience function.
+    esp_err_t ret = esp_vfs_spiffs_register(&conf);
+
+    if (ret != ESP_OK) {
+        if (ret == ESP_FAIL) {
+            printf("Failed to mount or format filesystem\n");
+        } else if (ret == ESP_ERR_NOT_FOUND) {
+            printf("Failed to find SPIFFS partition\n");
+        } else {
+            printf("Failed to initialize SPIFFS (%s)\n", esp_err_to_name(ret));
+        }
         return;
     }
-    fprintf(f, "Hello World!\n");
-    fclose(f);
-    ESP_LOGI(TAG, "File written");
+	
+    size_t total = 0, used = 0;    
+    ret = esp_spiffs_info(partition_label, &total, &used);
+    if (ret != ESP_OK) {
+        printf("Failed to get SPIFFS partition information (%s)\n", esp_err_to_name(ret));
+    } else {
+        printf("Partition size: total: %d, used: %d\n", total, used);
+    }
 
     // Check if destination file exists before renaming
     struct stat st;
     if (stat(file_name2, &st) == 0) {
-        // Delete it if it exists
-        unlink(file_name2);
+        //Don't touch if exists
+		printf("%s already exists\n", file_name2);
+		return;
     }
 
     // Rename original file
-    ESP_LOGI(TAG, "Renaming file");
+    printf("Renaming file\n");
     if (rename(file_name1, file_name2) != 0) {
-        ESP_LOGE(TAG, "Rename failed");
+        printf("Rename failed\n");
         return;
     }
-
-    // Open renamed file for reading
-    ESP_LOGI(TAG, "Reading file");
-    f = fopen(file_name2, "r");
-    if (f == NULL) {
-        ESP_LOGE(TAG, "Failed to open file for reading");
-        return;
-    }
-    char line[64];
-    fgets(line, sizeof(line), f);
-    fclose(f);
-    // strip newline
-    char* pos = strchr(line, '\n');
-    if (pos) {
-        *pos = '\0';
-    }
-    ESP_LOGI(TAG, "Read from file: '%s'", line);
 
     // All done, unmount partition and disable SPIFFS
     esp_vfs_spiffs_unregister(partition_label);
-    ESP_LOGI(TAG, "SPIFFS unmounted");
 }
 
 extern void JavaTask();
@@ -128,13 +150,19 @@ void app_main()
 	heap_caps_print_heap_info(MALLOC_CAP_DEFAULT);
 	heap_caps_print_heap_info(MALLOC_CAP_INTERNAL);
 	heap_caps_print_heap_info(MALLOC_CAP_SPIRAM);
-	heap_caps_print_heap_info(MALLOC_CAP_DMA);
+	heap_caps_print_heap_info(MALLOC_CAP_DMA);	
 	
-	test_spiffs("/appdb/unsecure", "unsecadb", "/appdb/unsecure/hello.txt", "/appdb/unsecure/foo.txt");
-	test_spiffs("/appdb/secure", "secadb", "/appdb/secure/hello.txt", "/appdb/secure/foo.txt");
-	test_spiffs("/userdata", "user", "/userdata/hello.txt", "/userdata/foo.txt");
-			
-	JavaTask();
+	if (!exist_spiffs("/appdb/unsecure", "unsecadb", "/appdb/unsecure/properties.ini.jar") &&
+		exist_spiffs("/appdb/unsecure", "unsecadb", "/appdb/unsecure/_factory.ini")) {
+		rename_spiffs("/appdb/unsecure", "unsecadb", "/appdb/unsecure/_factory.ini", "/appdb/unsecure/properties.ini.jar");
+	}
+	
+	if (exist_spiffs("/appdb/unsecure", "unsecadb", "/appdb/unsecure/properties.ini.jar")) {
+		printf("Starting JOSH VM...\n");
+		JavaTask();
+	} else {
+		printf("Can't find properties file, failed to start JOSH VM\n");
+	}
 
     for (int i = 10; i >= 0; i--) {
         printf("Restarting in %d seconds...\n", i);
