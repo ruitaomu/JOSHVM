@@ -105,12 +105,11 @@ static void wifi_init_sta()
 	
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config) );
-	ESP_LOGI(TAG, "esp_wifi_start ...");
-    ESP_ERROR_CHECK(esp_wifi_start() );
-
-    ESP_LOGI(TAG, "wifi_init_sta finished.");
-    ESP_LOGI(TAG, "connect to ap SSID:%s password:%s",
+	javacall_logging_printf(JAVACALL_LOGGING_INFORMATION, JC_NETWORK, "esp_wifi_start ...\n");	
+    javacall_logging_printf(JAVACALL_LOGGING_INFORMATION, JC_NETWORK, "connecting to ap SSID:%s password:%s\n",
              wifi_config.sta.ssid, wifi_config.sta.password);
+    ESP_ERROR_CHECK(esp_wifi_start() );
+    javacall_logging_printf(JAVACALL_LOGGING_INFORMATION, JC_NETWORK, "wifi_init_sta finished.\n");
 	wifi_status = STA_START;
 }
 
