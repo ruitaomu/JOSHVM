@@ -10,10 +10,6 @@ AR=$(BUILDTOOLS_BIN_DIR)/xtensa-esp32-elf-ar
 CFLAGS += 
 CFLAGS += $(SPECIFIC_DEFINITIONS)
 
-ifeq ($(ENABLE_ESP32_VOICE_SUPPORT), true)
-CFLAGS += -DENABLE_ESP32_VOICE_SUPPORT=1
-endif
-
 include environment.gmk
 
 #For each project specified toolchain shall be selected
