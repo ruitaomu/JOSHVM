@@ -128,6 +128,9 @@ public class Logging extends LoggingBase {
     public static void report(int severity, int channelID, String message) {
 
         if(getAllowedSeverity(channelID) <= severity) {
+            if (message == null) {
+                message = String.valueOf(message);
+            }
             report0(severity, channelID, message);
         }
 
