@@ -3247,6 +3247,11 @@ OsSerialport_<os_family>.cpp		sni_event.h
 PCSLString_Util.cpp					kni.h
 PCSLString_Util.cpp					PCSLString_Util.h
 
+datagramProtocol.cpp				kni.h
+datagramProtocol.cpp				sni.h
+datagramProtocol.cpp				sni_event.h
+datagramProtocol.cpp				kni_globals.h
+
 SystemProperties_<os_family>.cpp	GlobalDefinitions.hpp
 SystemProperties_<os_family>.cpp	OsMemory.hpp
 SystemProperties_<os_family>.cpp	SystemProperties.h
