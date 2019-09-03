@@ -100,7 +100,7 @@ class MemAccess: Instruction {
 
   void set_offset( const int offset ) const {
     GUARANTEE(offset >= 0 && abs(offset)/4 < 0x100, "offset too large")
-    set_encoding(encoding() & 0xff00 | abs(offset/4));
+    set_encoding((encoding() & 0xff00) | abs(offset/4));
   }
 
   address location( void ) const {

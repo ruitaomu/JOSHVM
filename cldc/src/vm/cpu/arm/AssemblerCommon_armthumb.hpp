@@ -156,7 +156,7 @@
       // I don't know why these is different for coprocessors
       mode = Mode(1 << 21);
     }
-    return Address5(mode | (up(offset_8) << 23) | rn << 16 | abs(offset_8) & 0xff);
+    return Address5(mode | (up(offset_8) << 23) | rn << 16 | (abs(offset_8) & 0xff));
   }
 
   static Address5 imm_index5(Register rn, const int offset_10 = 0,

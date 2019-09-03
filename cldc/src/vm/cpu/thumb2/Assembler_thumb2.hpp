@@ -336,7 +336,7 @@ protected:
     GUARANTEE(rd > r7 || rm > r7,                           \
               "Unpredictable instruction H1==0 and H2==0"); \
     emit(17 << 10 | opcode << 8 | ((rd & 0x8) >> 3) << 7 |  \
-                    rm << 3 | rd & 0x7);                    \
+                    rm << 3 | (rd & 0x7));                    \
   }
   F(add_hi, 0x0)
   F(cmp_hi, 0x1)
@@ -562,10 +562,10 @@ protected:
     if ((p_value >> 16) == (p_value & 0xFFFF)) {
       int first_8_bits = p_value & 0xFF;
       int second_8_bits = (p_value >> 8) & 0xFF;
-      if (p_value & 0xFF00FF00 == 0) {
+      if ((p_value & 0xFF00FF00) == 0) {
         result = first_8_bits | OOXYOOXY_FORMAT;
         return true;
-      } else if (p_value & 0x00FF00FF == 0) {
+      } else if ((p_value & 0x00FF00FF) == 0) {
         result = second_8_bits | XYOOXYOO_FORMAT;
         return true;
       } else {
@@ -1302,7 +1302,7 @@ protected:
 
 #define F(mnemonic, op) \
   void mnemonic() { \
-    emit_w(0xF3BF8F0F  | op < 4); \
+    emit_w(0xF3BF8F0F  | (op < 4)); \
   }
   F(clrex_w,   0x2)
   F(dsb_w,     0x4)

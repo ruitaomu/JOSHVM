@@ -1293,7 +1293,7 @@ inline int Disassembler::disasm_internal(const short* addr, short instr,
         stream()->print("%s\t%s, [%s, %s]", op, rd, rn, rm);
       } else if (bit(instr, 10)) {
         int opcode = (instr >> 8) & 0x3;
-        Register reg_rd = as_register((instr       & 0x7) | (instr >> 4) & 0x8);
+        Register reg_rd = as_register((instr       & 0x7) | ((instr >> 4) & 0x8));
         Register reg_rm = as_register((instr >> 3) & 0xF);
 
         const char* rd = register_name( reg_rd );
