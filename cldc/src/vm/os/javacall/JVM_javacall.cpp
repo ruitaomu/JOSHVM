@@ -266,6 +266,8 @@ static int JVM_Task(int argc, char **argv) {
 	javacall_gpio_deinit();
 #endif
 
+    javacall_finalize_configurations();
+
 #if ENABLE_PCSL
 	  pcsl_file_finalize();
 #else
@@ -273,8 +275,6 @@ static int JVM_Task(int argc, char **argv) {
 #endif
 
 	javacall_events_finalize();
-	javacall_finalize_configurations();
-	
 
 end:
 #if ENABLE_PCSL

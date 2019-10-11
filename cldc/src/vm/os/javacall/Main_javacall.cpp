@@ -173,6 +173,8 @@ end:
 	  javacall_gpio_deinit();
 #endif
 
+    javacall_finalize_configurations();
+
 #if ENABLE_PCSL
 	  pcsl_file_finalize();
 #else
@@ -180,8 +182,6 @@ end:
 #endif
 
   javacall_events_finalize();
-
-  javacall_finalize_configurations();
 
 #if ENABLE_PCSL
   pcsl_mem_finalize();
