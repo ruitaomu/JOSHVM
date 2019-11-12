@@ -1372,3 +1372,5 @@ HWND getPhantomWindowHandle() {
     return hPhantomWindow;
 }
 
+void javacall_network_config() {
+}

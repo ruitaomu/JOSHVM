@@ -417,6 +417,8 @@ javacall_result /*OPTIONAL*/ javacall_network_setsockopt(
  */
 char * javacall_inet_ntoa(javacall_ip_version ip_version, void *pAddress);
 
+void javacall_network_config();
+
 /**
  * Enables or disables ACCEPT notifications for the given server socket
  *

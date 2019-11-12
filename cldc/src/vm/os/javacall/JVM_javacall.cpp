@@ -188,6 +188,7 @@ static int JVM_Task(int argc, char **argv) {
 #endif
 
   javacall_initialize_configurations();
+  javacall_network_config();
 
   JVMSPI_setJAMSPath();
 
