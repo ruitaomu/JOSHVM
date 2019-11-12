@@ -186,6 +186,10 @@ ifeq ($(ENABLE_DIRECTUI), true)
 include $(DIRECTUI_DIR)/makefiles/vm_module.make
 endif
 
+ifeq ($(ENABLE_MEDIA), true)
+include $(MEDIA_DIR)/makefiles/vm_module.make
+endif
+
 include $(LOGGING_UTIL_DIR)/makefiles/vm_module.make
 
 ifeq ($(ENABLE_SECURITY), true)
@@ -328,6 +332,11 @@ endif
 ifeq ($(ENABLE_DIRECTUI), true)
 Obj_Files           +=         $(DIRECTUI_Obj_Files)
 ENABLE_CFLAGS       +=         -DENABLE_DIRECTUI
+endif
+
+ifeq ($(ENABLE_MEDIA), true)
+Obj_Files           +=         $(MEDIA_Obj_Files)
+ENABLE_CFLAGS       +=         -DENABLE_MEDIA
 endif
 
 ifeq ($(ENABLE_SECURITY), true)

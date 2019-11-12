@@ -1,0 +1,5 @@
+API: JOSHMedia
+API-Name: JOSH Media API
+API-Type: Optional
+API-Specification-Version: 1.0
+

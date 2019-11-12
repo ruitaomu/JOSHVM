@@ -56,6 +56,10 @@ ifeq ($(ENABLE_DIRECTUI), true)
 JSR_LIST += DIRECTUI
 USE_DIRECTUI=true
 endif
+ifeq ($(ENABLE_MEDIA), true)
+JSR_LIST += MEDIA
+USE_MEDIA=true
+endif
 
 ifeq ($(ENABLE_SECURITY_NATIVE_RSA_SIGNATURE), true)
 JSR_LIST += SECURITY
@@ -84,6 +88,8 @@ DIO_JC_IMPL_PATH=$(JAVACALL_DIR)/implementation/win32
 CELLULAR_JC_IMPL_PATH=$(JAVACALL_DIR)/implementation/win32
 
 DIRECTUI_JC_IMPL_PATH=$(JAVACALL_DIR)/implementation/win32
+
+MEDIA_JC_IMPL_PATH=$(JAVACALL_DIR)/implementation/win32
 
 SECURITY_JC_IMPL_PATH=$(JAVACALL_DIR)/implementation/win32
 
@@ -160,6 +166,10 @@ endif
 
 ifeq ($(USE_DIRECTUI),true)
 SPECIFIC_DEFINITIONS+= -DENABLE_DIRECTUI=1
+endif
+
+ifeq ($(USE_MEDIA),true)
+SPECIFIC_DEFINITIONS+= -DENABLE_MEDIA=1
 endif
 
 ifeq ($(USE_MULTIPLE_INSTANCES),true)

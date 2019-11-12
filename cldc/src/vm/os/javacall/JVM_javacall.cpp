@@ -87,6 +87,7 @@ extern "C" {
 #ifdef ENABLE_DIRECTUI
 #include <javacall_directui.h>
 #endif
+#include <javacall_network.h>
 #ifdef ENABLE_JSR_120
 #include <javacall_sms.h>
 #endif
@@ -469,3 +470,42 @@ extern "C" void javanotify_security_event(void* handle) {
 #endif
 
 
+#if ENABLE_MEDIA
+#include "javacall_media.h"
+
+extern "C" void javanotify_media_event(javacall_media_event_type type,
+        javacall_handle handle,
+        javacall_result result) {
+    SNIReentryData rd;
+
+    rd.status = result;
+    rd.descriptor = (int)handle;
+    switch (type) {
+        case JAVACALL_EVENT_MEDIA_COMMON:
+            rd.waitingFor = MEDIA_SIGNAL;
+            break;
+        case JAVACALL_EVENT_MEDIA_PREPARE_COMPLETED:
+            rd.waitingFor = MEDIA_PREPARE_SIGNAL;
+            break;
+        case JAVACALL_EVENT_MEDIA_READ:
+            rd.waitingFor = MEDIA_READ_SIGNAL;
+            break;
+        case JAVACALL_EVENT_MEDIA_WRITE:
+            rd.waitingFor = MEDIA_WRITE_SIGNAL;
+            break;
+        case JAVACALL_EVENT_MEDIA_CLOSE:
+            rd.status = JAVACALL_INTERRUPTED;
+            rd.waitingFor = MEDIA_PREPARE_SIGNAL;
+            javacall_event_send((unsigned char*)&rd, sizeof(SNIReentryData));
+            rd.waitingFor = MEDIA_READ_SIGNAL;
+            javacall_event_send((unsigned char*)&rd, sizeof(SNIReentryData));
+            rd.waitingFor = MEDIA_WRITE_SIGNAL;
+            javacall_event_send((unsigned char*)&rd, sizeof(SNIReentryData));
+            return;
+        default:
+            return;
+    }
+
+    javacall_event_send((unsigned char*)&rd, sizeof(SNIReentryData));
+}
+#endif
