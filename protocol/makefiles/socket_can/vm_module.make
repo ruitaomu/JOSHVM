@@ -17,27 +17,24 @@
 # Please visit www.joshvm.org if you need additional information or
 # have any questions.
 
-PROTOCOL_SRC_DIR = $(EXTRA_PROTOCOLS_DIR)/socket/natives
+PROTOCOL_SRC_DIR = $(EXTRA_PROTOCOLS_DIR)/socket_can/native
 
-ROMGEN_CFG_FILES += $(EXTRA_PROTOCOLS_DIR)/makefiles/socket/rom.config
-
-ifeq ($(IsTarget),true)
+ROMGEN_CFG_FILES += $(EXTRA_PROTOCOLS_DIR)/makefiles/socket_can/rom.config
 
 ifeq ($(compiler), visCPP)
 PROTOCOL_Obj_Files += \
-	PCSLSocket.obj 
+	canbus_kni.obj 
 	
-PCSLSocket.obj: $(PROTOCOL_SRC_DIR)/PCSLSocket.c
+canbus_kni.obj: $(PROTOCOL_SRC_DIR)/canbus_kni.c
 	$(BUILD_C_TARGET_NO_PCH)
 	
 else
 
 PROTOCOL_Obj_Files += \
-	PCSLSocket.o
+	canbus_kni.o
 
-PCSLSocket.o: $(PROTOCOL_SRC_DIR)/PCSLSocket.c
+canbus_kni.o: $(PROTOCOL_SRC_DIR)/canbus_kni.c
 	$(BUILD_C_TARGET)
 	
 endif
 
-endif

@@ -1,31 +1,23 @@
 /*
- *   
- *
- * Copyright  1990-2007 Sun Microsystems, Inc. All Rights Reserved.
+ * Copyright (C) Max Mu
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER
- * 
+ *
  * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version
- * 2 only, as published by the Free Software Foundation.
- * 
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License version 2 for more details (a copy is
- * included at /legal/license.txt).
- * 
+ * modify it under the terms of the GNU General Public License
+ * version 2, as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License version 2 for more details.
+ *
  * You should have received a copy of the GNU General Public License
- * version 2 along with this work; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
- * 
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa
- * Clara, CA 95054 or visit www.sun.com if you need additional
- * information or have any questions.
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ *
+ * Please visit www.joshvm.org if you need additional information or
+ * have any questions.
  */
-
-#include "incls/_precompiled.incl"
-#include "incls/_PCSLSocket.cpp.incl"
 
 // Note the "&& 0" here. As of 2004/08/25 this code compiles with the
 // PCSL network library on linux/i386. However, the only existing PCSL
@@ -40,11 +32,18 @@
 // Usually the PCSL network library is used in the MIDP layer. The
 // only reason for you to compile on this file is to build a
 // stand-alone VM, without MIDP, in order to execute the CLDC-TCK.
+#include <jvm.h>
+#include <kni.h>
+#include <kni_globals.h>
+#include <sni.h>
+#include <sni_event.h>
 
-#if ENABLE_PCSL
-extern "C" {
 #include <pcsl_network.h>
 #include <josh_logging.h>
+
+#ifndef NULL
+#define NULL 0
+#endif
 
 static int inited = 0;
 
@@ -89,15 +88,9 @@ Java_com_sun_cldc_io_j2me_socket_Protocol_open0() {
 	            if (status == PCSL_NET_SUCCESS) {
 					
 	            } else if (status == PCSL_NET_IOERROR) {
-	            	jvm_sprintf((char*)gKNIBuffer,   
-						"IOError in socket::open = %d\n",        
-						(int)pcsl_network_error(pcslHandle));
-	                KNI_ThrowNew(KNIIOException, (char*)gKNIBuffer);
+	                KNI_ThrowNew(KNIIOException, "IOError in socket open");
 	            } else if (status == PCSL_NET_CONNECTION_NOTFOUND) {
-	            	jvm_sprintf((char*)gKNIBuffer,     
-						"ConnectionNotFound error in socket::open :"      
-						" error = %d\n", (int)pcsl_network_error(pcslHandle));
-	                KNI_ThrowNew(KNIConnectionNotFoundException, (char*)gKNIBuffer);
+	                KNI_ThrowNew(KNIConnectionNotFoundException, "ConnectionNotFound error in socket open");
 	            } else if (status == PCSL_NET_WOULDBLOCK) {
 	                SNIEVT_wait(NETWORK_WRITE_SIGNAL, (int)pcslHandle,
 	                    context);
@@ -122,15 +115,9 @@ Java_com_sun_cldc_io_j2me_socket_Protocol_open0() {
 	            if (status == PCSL_NET_SUCCESS) {
 					
 	            } else if (status == PCSL_NET_IOERROR) {
-	            	jvm_sprintf((char*)gKNIBuffer,   
-						"IOError in socket::open = %d\n",        
-						(int)pcsl_network_error(pcslHandle));
-	                KNI_ThrowNew(KNIIOException, (char*)gKNIBuffer);
+	                KNI_ThrowNew(KNIIOException, "IOError in socket open");
 	            } else if (status == PCSL_NET_CONNECTION_NOTFOUND) {
-	            	jvm_sprintf((char*)gKNIBuffer,     
-						"ConnectionNotFound error in socket::open :"      
-						" error = %d\n", (int)pcsl_network_error(pcslHandle));
-	                KNI_ThrowNew(KNIConnectionNotFoundException, (char*)gKNIBuffer);
+	                KNI_ThrowNew(KNIConnectionNotFoundException, "ConnectionNotFound error in socket open");
 	            } else if (status == PCSL_NET_WOULDBLOCK) {
 	                SNIEVT_wait(NETWORK_WRITE_SIGNAL, (int)pcslHandle,
 	                    context);
@@ -154,10 +141,7 @@ Java_com_sun_cldc_io_j2me_socket_Protocol_open0() {
 	        } else  {            
 	        	void* dummy;
 	        	pcsl_socket_close_start(pcslHandle, &dummy);
-	            jvm_sprintf((char*)gKNIBuffer,
-	                    "error %d in socket::open",
-	                    (int)pcsl_network_error(pcslHandle));
-	            KNI_ThrowNew(KNIConnectionNotFoundException, (char*)gKNIBuffer);
+	            KNI_ThrowNew(KNIConnectionNotFoundException, "error in socket open");
 	        }
 	    }    	
 	}
@@ -213,10 +197,7 @@ Java_com_sun_cldc_io_j2me_socket_Protocol_getHostByName0() {
 	            if (status == PCSL_NET_SUCCESS) {
 					
 	            } else if (status == PCSL_NET_IOERROR) {
-	            	jvm_sprintf((char*)gKNIBuffer,   
-						"IOError in socket::gethostbyname = %d\n", 
-						(int)pcsl_network_error(pcslHandle));
-	                KNI_ThrowNew(KNIIOException, (char*)gKNIBuffer);
+	                KNI_ThrowNew(KNIIOException, "IOError in socket gethostbyname");
 	            } else if (status == PCSL_NET_WOULDBLOCK) {
 	                SNIEVT_wait(HOST_NAME_LOOKUP_SIGNAL, (int)pcslHandle,
 	                    context);
@@ -240,10 +221,7 @@ Java_com_sun_cldc_io_j2me_socket_Protocol_getHostByName0() {
 	            if (status == PCSL_NET_SUCCESS) {
 					
 	            } else if (status == PCSL_NET_IOERROR) {
-	            	jvm_sprintf((char*)gKNIBuffer,   
-						"IOError in socket::gethostbyname = %d\n",        
-						(int)pcsl_network_error(pcslHandle));
-	                KNI_ThrowNew(KNIIOException, (char*)gKNIBuffer);
+	                KNI_ThrowNew(KNIIOException, "IOError in socket gethostbyname");
 	            } else if (status == PCSL_NET_WOULDBLOCK) {
 	                SNIEVT_wait(HOST_NAME_LOOKUP_SIGNAL, (int)pcslHandle,
 	                    context);
@@ -264,10 +242,7 @@ Java_com_sun_cldc_io_j2me_socket_Protocol_getHostByName0() {
 	        } else if (status == PCSL_NET_WOULDBLOCK) {
 	            SNIEVT_wait(HOST_NAME_LOOKUP_SIGNAL, (int)pcslHandle, context);
 	        } else  {            
-	            jvm_sprintf((char*)gKNIBuffer,
-	                    "error %d in socket::gethostbyname",
-	                    (int)pcsl_network_error(pcslHandle));
-	            KNI_ThrowNew(KNIConnectionNotFoundException, (char*)gKNIBuffer);
+	            KNI_ThrowNew(KNIConnectionNotFoundException, "error in socket gethostbyname");
 	        }
     	}
   	}
@@ -452,6 +427,3 @@ Java_com_sun_cldc_io_j2me_socket_Protocol_close0() {
 void notify_network_down() {
 	inited = 0;
 }
-
-} // extern "C"
-#endif //ENABLE_PCSL

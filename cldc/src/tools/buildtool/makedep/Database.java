@@ -475,10 +475,6 @@ public class Database {
             // BSDSocket is not part of VM library.
             return true;
         }
-        if (file.equals("PCSLSocket.cpp")) {
-            // PCSLSocket is not part of VM library.
-            return true;
-        }
         if (file.equals("ReflectNatives.cpp")) {
             // ReflectNatives is not part of VM library.
             return true;

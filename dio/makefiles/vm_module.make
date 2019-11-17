@@ -31,28 +31,22 @@ endif
 ifeq ($(compiler), visCPP)
 DIO_Obj_Files = \
 	gpio_kni.obj \
-	canbus_kni.obj \
 	spibus_kni_$(platform).obj
 	
 gpio_kni.obj: $(DIO_SRC_DIR)/native/gpio_kni.c
 	$(BUILD_C_TARGET_NO_PCH)
 spibus_kni_$(platform).obj: $(DIO_SRC_DIR)/native/spibus_kni_$(platform).c
 	$(BUILD_C_TARGET_NO_PCH)
-canbus_kni.obj: $(DIO_SRC_DIR)/native/canbus_kni.c
-	$(BUILD_C_TARGET_NO_PCH)
 	
 else
 
 DIO_Obj_Files = \
 	gpio_kni.o \
-	canbus_kni.o \
 	spibus_kni_$(platform).o
 
 gpio_kni.o: $(DIO_SRC_DIR)/native/gpio_kni.c
 	$(BUILD_C_TARGET)
 spibus_kni_$(platform).o: $(DIO_SRC_DIR)/native/spibus_kni_$(platform).c
-	$(BUILD_C_TARGET)
-canbus_kni.o: $(DIO_SRC_DIR)/native/canbus_kni.c
 	$(BUILD_C_TARGET)
 
 endif

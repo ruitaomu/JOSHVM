@@ -16,28 +16,4 @@
 # 
 # Please visit www.joshvm.org if you need additional information or
 # have any questions.
-
-PROTOCOL_SRC_DIR = $(EXTRA_PROTOCOLS_DIR)/socket/natives
-
-ROMGEN_CFG_FILES += $(EXTRA_PROTOCOLS_DIR)/makefiles/socket/rom.config
-
-ifeq ($(IsTarget),true)
-
-ifeq ($(compiler), visCPP)
-PROTOCOL_Obj_Files += \
-	PCSLSocket.obj 
-	
-PCSLSocket.obj: $(PROTOCOL_SRC_DIR)/PCSLSocket.c
-	$(BUILD_C_TARGET_NO_PCH)
-	
-else
-
-PROTOCOL_Obj_Files += \
-	PCSLSocket.o
-
-PCSLSocket.o: $(PROTOCOL_SRC_DIR)/PCSLSocket.c
-	$(BUILD_C_TARGET)
-	
-endif
-
-endif
+JSR_JAVA_FILES_DIR += $(EXTRA_PROTOCOLS_DIR)/socket_can/classes

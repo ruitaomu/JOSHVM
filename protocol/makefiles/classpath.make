@@ -31,3 +31,7 @@ include $(EXTRA_PROTOCOLS_DIR)/makefiles/https/classpath.make
 endif
 include $(EXTRA_PROTOCOLS_DIR)/makefiles/ssl/classpath.make
 endif
+
+ifeq ($(LOCAL_CONFIG_USE_SOCKETCAN), true)
+include $(EXTRA_PROTOCOLS_DIR)/makefiles/socket_can/classpath.make
+endif

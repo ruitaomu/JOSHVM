@@ -2841,13 +2841,6 @@ BSDSocket.cpp                    Transport.hpp
 BSDSocket.cpp                    SocketTransport.hpp
 #endif
 
-PCSLSocket.cpp                   GlobalDefinitions.hpp
-PCSLSocket.cpp                   jvm.h
-PCSLSocket.cpp                   sni.h
-PCSLSocket.cpp                   OS.hpp
-PCSLSocket.cpp                   sni_event.h
-PCSLSocket.cpp                   kni_globals.h
-
 sni.h                            jvmspi.h
 
 sni.cpp                          GlobalDefinitions.hpp

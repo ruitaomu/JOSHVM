@@ -2858,12 +2858,14 @@ $(DIST_LIB_DIR)/cldc_classes.zip: $(CLDC_ZIP)
 	$(A)echo installed $@
 
 $(DIST_LIB_DIR)/cldcx_classes.zip: $(CLDC_ZIP) $(DIST_LIB_DIR)/cldc_classes.zip
+ifeq ($(ENABLE_EXTRA_PROTOCOLS), true)
 	$(A)echo ... archiving extra classes
 	$(A)cp -r $(CLASSES) ./classesx
 	$(A)cd classesx; $(JAR) cf ../cldcx_classes.zip com/sun/cldc/io/j2me/socket
 	$(A)rm -rf classesx
 	$(A)mv cldcx_classes.zip $@
 	$(A)echo installed $@
+endif
 
 $(DIST_LIB_DIR)/cldctest_classes.zip: $(CLDC_ZIP) $(DIST_LIB_DIR)/cldc_classes.zip
 	$(A)echo ... archiving test classes
