@@ -181,7 +181,7 @@ typedef struct _pcslMemStruct {
 /*
  * Default size of pool usable for allocations; in bytes
  */
-#define DEFAULT_POOL_SIZE (1024*1024)
+#define DEFAULT_POOL_SIZE (140*1024)
 //(1024*1024+800*1024)
 
 /*
