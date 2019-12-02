@@ -1712,13 +1712,13 @@ class FileConnectionInputStream extends InputStream {
         }
     }
 
-    static private byte[] dummy_buffer = new byte[64*1024];
+    static private byte[] dummy_buffer = new byte[256];
     public long skip(long n) throws IOException
     {
         int readBytesTotal = 0;        
         int readBytes = 0;
         while (n > 0){     
-            readBytes = read( dummy_buffer, 0, (int)((n > 64*1024) ? 64*1024 : n) );
+            readBytes = read( dummy_buffer, 0, (int)((n > 256) ? 256 : n) );
             if ( readBytes <= 0 ) {
                 break;
             } else {
