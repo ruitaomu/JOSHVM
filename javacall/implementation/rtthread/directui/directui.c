@@ -88,6 +88,10 @@ javacall_result javacall_directui_key_event_get(javacall_keypress_code* key, jav
 	return JAVACALL_OK;
 }
 
+javacall_result javacall_directui_setBacklight(int on) {
+	return JAVACALL_OK;
+}
+
 #ifdef __cplusplus
 }
 #endif
