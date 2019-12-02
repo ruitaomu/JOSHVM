@@ -33,26 +33,109 @@ static int err_count = 0;
 
 static rt_thread_t serial_tid = RT_NULL;
 static struct rt_mailbox jc_serial_mb;
-static char jc_serial_mb_pool[4000];
+static char jc_serial_mb_pool[128];
+
+
+#define JC_SERIAL_HANDLE_MIN 2000
+#define SERIAL_HANDLE_COUNT 8
+
+static int next_serial_handle = JC_SERIAL_HANDLE_MIN;
+
+static struct {
+    int handle;
+    int native_handle;
+    int flag;
+} serial_handle_data[SERIAL_HANDLE_COUNT] = {0};
+
+static int serial_add_handle(int native_handle) {
+    for (int i = 0; i < SERIAL_HANDLE_COUNT; i++) {
+        if (serial_handle_data[i].native_handle == 0) {
+            serial_handle_data[i].native_handle = native_handle;
+            serial_handle_data[i].handle = next_serial_handle;
+            next_serial_handle++;
+            if (next_serial_handle < JC_SERIAL_HANDLE_MIN) {
+                next_serial_handle = JC_SERIAL_HANDLE_MIN;
+            }
+            serial_handle_data[i].flag = 0;
+            return serial_handle_data[i].handle;
+        }
+    }
+    return -1;
+}
+
+static void serial_remove_handle(int native_handle) {
+    for (int i = 0; i < SERIAL_HANDLE_COUNT; i++) {
+        if (serial_handle_data[i].native_handle == native_handle) {
+            serial_handle_data[i].native_handle = 0;
+            serial_handle_data[i].handle = 0;
+            serial_handle_data[i].flag = 0;
+            return;
+        }
+    }
+}
+
+static int serial_get_handle(int native_handle) {
+    for (int i = 0; i < SERIAL_HANDLE_COUNT; i++) {
+        if (serial_handle_data[i].native_handle == native_handle) {
+            return serial_handle_data[i].handle;
+        }
+    }
+    return 0;
+}
+
+static int serial_get_native_handle(int handle) {
+    for (int i = 0; i < SERIAL_HANDLE_COUNT; i++) {
+        if (serial_handle_data[i].handle == handle) {
+            return serial_handle_data[i].native_handle;
+        }
+    }
+    return 0;
+}
+
+static int serial_check_and_set_flag(int native_handle) {
+    int prev_flag = 0;
+    for (int i = 0; i < SERIAL_HANDLE_COUNT; i++) {
+        if (serial_handle_data[i].native_handle == native_handle) {
+            prev_flag = serial_handle_data[i].flag;
+            serial_handle_data[i].flag = 1;
+            break;
+        }
+    }
+    return prev_flag;
+}
+
+static void serial_unset_flag(int native_handle) {
+    for (int i = 0; i < SERIAL_HANDLE_COUNT; i++) {
+        if (serial_handle_data[i].native_handle == native_handle) {
+            serial_handle_data[i].flag = 0;
+            return;
+        }
+    }
+}
 
 static void waitSerialEventEntry(void* parameter) {
     rt_uint32_t value;
+    javacall_handle handle;
     while (1) {
         if (rt_mb_recv(&jc_serial_mb, &value, RT_WAITING_FOREVER) == RT_EOK) {
-            rt_device_t dev = (rt_device_t)value;
-            javanotify_serial_event(JAVACALL_EVENT_SERIAL_RECEIVE, dev, JAVACALL_OK);
+            handle = (javacall_handle)serial_get_handle(value);
+            javanotify_serial_event(JAVACALL_EVENT_SERIAL_RECEIVE, handle, JAVACALL_OK);
         }
     }
 }
 
 static void sendSerialEvent(rt_device_t dev) {
-    if (serial_tid != NULL) {
+    if (serial_check_and_set_flag(dev)) {
+        // already set
+        return;
+    }
+    if (serial_tid != RT_NULL) {
         rt_mb_send(&jc_serial_mb, (rt_uint32_t)dev);
     }
 }
 
 static void init_wait_thread() {
-    if (serial_tid != NULL) {
+    if (serial_tid != RT_NULL) {
         return;
     }
 
@@ -72,7 +155,13 @@ static void init_wait_thread() {
 }
 
 static javacall_result serial_read_common(javacall_handle hPort, unsigned char* buffer, int size ,int *bytesRead) {
-    int count = rt_device_read(hPort, 0, buffer, size > MAX_BUF_LEN ? MAX_BUF_LEN : size);
+    rt_device_t device = (rt_device_t)serial_get_native_handle(hPort);
+    if (device == 0) {
+        return JAVACALL_FAIL;
+    }
+
+    serial_unset_flag(device);
+    int count = rt_device_read(device, 0, buffer, size > MAX_BUF_LEN ? MAX_BUF_LEN : size);
     // if (count > 0) {
     //  javacall_printf("in serial_read. %d\n", count);
     // }
@@ -88,7 +177,12 @@ static javacall_result serial_read_common(javacall_handle hPort, unsigned char* 
 }
 
 static javacall_result serial_write_common(javacall_handle hPort, unsigned char* buffer, int size, int *bytesWritten) {
-    int count = rt_device_write(hPort, 0, buffer, size);
+    rt_device_t device = (rt_device_t)serial_get_native_handle(hPort);
+    if (device == 0) {
+        return JAVACALL_FAIL;
+    }
+
+    int count = rt_device_write(device, 0, buffer, size);
     if (count <= 0) {
         return JAVACALL_FAIL;
     }
@@ -98,6 +192,10 @@ static javacall_result serial_write_common(javacall_handle hPort, unsigned char*
 }
 
 static javacall_result serial_configure(javacall_handle hPort, int baudRate, int options) {
+    if (baudRate < 0) {
+        return JAVACALL_OK;
+    }
+
     if (hPort == device_com0) {
         if (com0_configured) {
             return JAVACALL_OK;
@@ -197,9 +295,12 @@ javacall_result /*OPTIONAL*/ javacall_serial_configure(javacall_handle pHandle, 
 javacall_result  /*OPTIONAL*/
 javacall_serial_open_start(const char *devName, int baudRate, unsigned int options ,javacall_handle *hPort, void **pContext)
 {
+    char* pCOM0Name = "uart4";
+    int isCOM0 = 0;
     char* pName;
     if (!strcmp(devName, "COM0")) {
-        pName = "uart3";
+        isCOM0 = 1;
+        pName = pCOM0Name;
     } else if (!strcmp(devName, "COM1")) {
         pName = "uart1";
     } else if (!strcmp(devName, "COM2")) {
@@ -217,7 +318,11 @@ javacall_serial_open_start(const char *devName, int baudRate, unsigned int optio
     } else if (!strcmp(devName, "COM8")) {
         pName = "uart8";
     } else {
-        pName = devName;
+        return JAVACALL_FAIL;
+    }
+
+    if (!isCOM0 && !strcmp(pName, pCOM0Name)) {
+        return JAVACALL_FAIL;
     }
 
     rt_device_t device = rt_device_find(pName);
@@ -225,15 +330,26 @@ javacall_serial_open_start(const char *devName, int baudRate, unsigned int optio
         return JAVACALL_FAIL;
     }
 
-    if (!strcmp(devName, "COM0")) {
+    int vm_handle = serial_get_handle(device);
+    if (vm_handle > 0) {
+        // has opened
+        if (isCOM0) {
+            serial_configure(device, baudRate, options);
+            *hPort = vm_handle;
+            return JAVACALL_OK;
+        } else {
+            return JAVACALL_FAIL;
+        }
+    }
+
+    if (isCOM0) {
         device_com0 = device;
     }
-    if (baudRate >= 0) {
-        serial_configure(device, baudRate, options);
-    }
+
+    serial_configure(device, baudRate, options);
     rt_device_set_rx_indicate(device, serial_rx_ind);
     rt_device_open(device, RT_DEVICE_OFLAG_RDWR|RT_DEVICE_FLAG_INT_RX);
-    *hPort = device;
+    *hPort = serial_add_handle(device);
 
     return JAVACALL_OK;
 }
@@ -273,13 +389,15 @@ javacall_result  /*OPTIONAL*/ javacall_serial_open_finish(const char *devName, i
 javacall_result /*OPTIONAL*/
 javacall_serial_close_start(javacall_handle hPort, void **pContext)
 {
-    if (hPort == device_com0) {
-        com0_configured = 0;
-        if (log_port_opened) {
-            return JAVACALL_OK;
-        }
+    rt_device_t device = (rt_device_t)serial_get_native_handle(hPort);
+    if (device == 0) {
+        return JAVACALL_FAIL;
     }
-    rt_device_close(hPort);
+    if (device == device_com0) {
+        return JAVACALL_OK;
+    }
+    rt_device_close(device);
+    serial_remove_handle(device);
     return JAVACALL_OK;
 }
 
@@ -398,6 +516,7 @@ void printToUart(char* buffer) {
     } else {
         err_count++;
         if (err_count >= 5) {
+            javacall_serial_close_start(uart_handle, NULL);
             log_port_opened = 0;
             err_count = 0;
         }

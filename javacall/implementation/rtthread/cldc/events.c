@@ -34,7 +34,7 @@ typedef struct EventMessage_ {
     int dataLen;
 }EventMessage;
 
-EventMessage *g_eventqueue_head, *g_eventqueue_tail;
+volatile EventMessage *g_eventqueue_head, *g_eventqueue_tail;
 int g_event_init = 0;
 static int lastError;
 
@@ -75,23 +75,34 @@ void eventqueue_enqueue(unsigned char* data, int dataLen){
 	//javacall_printf("eventqueue_enqueue\n");
 
 	EventMessage *e = (EventMessage *)rt_malloc(sizeof(EventMessage));
+	if (e == NULL) {
+		javacall_logging_printf(JAVACALL_LOGGING_WARNING, JC_EVENTS, "Event queue failed for no memory\n");
+		return;
+	}
 	e->data = rt_malloc(dataLen);
+	if (e->data == NULL) {
+		javacall_logging_printf(JAVACALL_LOGGING_WARNING, JC_EVENTS, "Event queue failed for no memory\n");
+		rt_free(e);
+		return;
+	}
 	e->dataLen = dataLen;
 	e->next = NULL;
 	rt_memcpy(e->data, data, dataLen);
 
+	MUTEX_LOCK;
 	if (g_eventqueue_tail){
 		g_eventqueue_tail->next = e;
 	}else{
 		g_eventqueue_head = e;		
 	}
 	g_eventqueue_tail = e;
+	MUTEX_UNLOCK;
 }
 
 int eventqueue_dequeue(unsigned char* data, int dataLen){
 	//javacall_printf("eventqueue_dequeue\n");
 
-	EventMessage* e;
+	EventMessage* h;
 	int len, ret;
 	
 	if (g_eventqueue_head == NULL){
@@ -105,13 +116,15 @@ int eventqueue_dequeue(unsigned char* data, int dataLen){
 	}
 	
 	rt_memcpy(data, g_eventqueue_head->data, len);
-	e = g_eventqueue_head->next;
-	rt_free(g_eventqueue_head->data);
-	rt_free(g_eventqueue_head);
-	g_eventqueue_head = e;
-	if (g_eventqueue_head==0)
+	MUTEX_LOCK;
+	h = g_eventqueue_head;
+	g_eventqueue_head = g_eventqueue_head->next;
+	if (g_eventqueue_head == NULL) {
 		g_eventqueue_tail = 0;
-
+	}
+	MUTEX_UNLOCK;
+	rt_free(h->data);
+	rt_free(h);
 	return ret;
 
 }
@@ -144,7 +157,12 @@ int check_for_events(int miliseconds){
 void gen_event(){
 	//javacall_printf("gen_event\n");
 
-	rt_mb_send(&mb, 0);
+	rt_err_t result = rt_mb_send(&mb, 0);
+	if (result == RT_EOK) {
+		return;
+	} else {
+		javacall_logging_printf(JAVACALL_LOGGING_WARNING, JC_EVENTS, "Event mailbox full\n");
+	}
 }
 
     
@@ -177,7 +195,7 @@ javacall_result javacall_event_receive(
                             /*IN*/  int             binaryBufferMaxLen,
                             /*OUT*/ int*            outEventLen){
 
-	//javacall_printf("javacall_event_receive\n");
+	
 	
 	int event = 0;
 	
@@ -219,8 +237,7 @@ javacall_result javacall_event_receive(
 javacall_result javacall_event_send(unsigned char* binaryBuffer,
                                     int binaryBufferLen){
 
-	//javacall_printf("javacall_event_send\n");
-
+	
 	if (!g_event_init){
 		javacall_events_init();
 	}
@@ -230,11 +247,9 @@ javacall_result javacall_event_send(unsigned char* binaryBuffer,
 		return JAVACALL_FAIL;
 	}
 
-	MUTEX_LOCK;
 	eventqueue_enqueue(binaryBuffer, binaryBufferLen);
 	gen_event();
-	MUTEX_UNLOCK;
-
+	
 	return JAVACALL_OK;
 
 	
@@ -290,7 +305,6 @@ javacall_result javacall_events_finalize(void){
 	MUTEX_LOCK;
 	eventqueue_destroy();
 	rt_mb_detach(&mb);
-	rt_mb_delete(&mb);
 	g_event_init = 0;
 	MUTEX_UNLOCK;
 	

@@ -23,6 +23,7 @@ extern "C" {
 #endif
 
 #include "javacall_os.h"
+#include <rthw.h>
 
 #define RT_THREAD_LIBC_WORKAROUND
 
@@ -59,6 +60,7 @@ void javacall_os_flush_icache(unsigned char* address, int size) {
 }
 
 void javacall_os_hardware_reset() {
+	rt_hw_cpu_reset();
 }
 
 #ifdef RT_THREAD_LIBC_WORKAROUND

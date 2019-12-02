@@ -123,7 +123,7 @@ typedef const char* javacall_const_ascii_string;
  * @def JAVACALL_MAX_ROOTS_LIST_LENGTH
  * Maximal length of a list of file system roots
  */
-#define JAVACALL_MAX_ROOTS_LIST_LENGTH  8192
+#define JAVACALL_MAX_ROOTS_LIST_LENGTH  256
 
 /**
  * @def JAVACALL_MAX_ROOT_PATH_LENGTH
@@ -173,8 +173,8 @@ typedef enum {
 #define MILISECS_TO_TICKS(x) ((x)/(1000/RT_TICK_PER_SECOND))
 
 #define JC_NATIVE_ROOT_PATH "/"
-#define JC_NATIVE_INTERNAL_ROOT_PATH JC_NATIVE_ROOT_PATH"home/root/joshvminternal/"
-#define JC_NATIVE_USER_ROOT_PATH JC_NATIVE_ROOT_PATH"home/root/joshvmuser/"
+#define JC_NATIVE_INTERNAL_ROOT_PATH JC_NATIVE_ROOT_PATH"joshvm/internal/"
+#define JC_NATIVE_USER_ROOT_PATH JC_NATIVE_ROOT_PATH"joshvm/user/"
 
 #define JAVACALL_JAMS_JAVA_ROOT_PATH_UNSECURE "/internal/appdb/unsecure/"
 #define JAVACALL_JAMS_NATIVE_ROOT_PATH_UNSECURE JC_NATIVE_INTERNAL_ROOT_PATH"appdb/unsecure/"

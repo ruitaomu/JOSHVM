@@ -546,7 +546,7 @@ javacall_result javacall_fileconnection_dir_exists(const javacall_utf16* pathNam
 #endif
     
     if(JAVACALL_OK != javacall_fileconnection_is_directory(pathName, pathNameLen, &res)) {
-        javacall_logging_printf(JAVACALL_LOGGING_ERROR, JC_FC, "javacall_fileconnection_dir_exists(): not exist directory\n");
+        //javacall_logging_printf(JAVACALL_LOGGING_ERROR, JC_FC, "javacall_fileconnection_dir_exists(): not exist directory\n");
         return JAVACALL_FAIL;
     }
 
