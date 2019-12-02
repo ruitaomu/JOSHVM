@@ -277,8 +277,9 @@ end:
 }
 
 #ifndef JAVACALL_JAVATASK_STARTUP_PARAM
-#define JAVACALL_JAVATASK_STARTUP_PARAM "-int", \
-	"com.sun.cldchi.test.HelloWorld"
+#define JAVACALL_JAVATASK_STARTUP_PARAM "=HeapMin81920", "=HeapCapacity81920", "-int", \
+ 	"com.sun.cldchi.test.HelloWorld"
+#endif
 #endif
 
 extern "C" void JavaTask(void) {
