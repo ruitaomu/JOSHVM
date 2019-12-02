@@ -47,6 +47,11 @@ JSR_LIST += CELLULAR
 USE_CELLULAR=true
 endif
 
+ifeq ($(ENABLE_DIRECTUI), true)
+JSR_LIST += DIRECTUI
+USE_DIRECTUI=true
+endif
+
 USE_CLDC=true
 USE_MIDP=false
 
@@ -67,6 +72,8 @@ JSR_75_JC_IMPL_PATH=$(JAVACALL_DIR)/implementation/rtthread
 DIO_JC_IMPL_PATH=$(JAVACALL_DIR)/implementation/rtthread
 
 CELLULAR_JC_IMPL_PATH=$(JAVACALL_DIR)/implementation/rtthread
+
+DIRECTUI_JC_IMPL_PATH=$(JAVACALL_DIR)/implementation/rtthread
 
 ifeq ($(USE_NATIVE_AMS_JC),)
 USE_NATIVE_AMS_JC=false
@@ -137,6 +144,10 @@ endif
 
 ifeq ($(USE_CELLULAR),true)
 SPECIFIC_DEFINITIONS+= -DENABLE_CELLULAR=1 
+endif
+
+ifeq ($(USE_DIRECTUI),true)
+SPECIFIC_DEFINITIONS+= -DENABLE_DIRECTUI=1
 endif
 
 ifeq ($(USE_MULTIPLE_INSTANCES),true)

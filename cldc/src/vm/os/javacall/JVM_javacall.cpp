@@ -84,6 +84,9 @@ extern "C" {
 #include <javacall_logging.h>
 #include <javacall_properties.h>
 #include <javacall_file.h>
+#ifdef ENABLE_DIRECTUI
+#include <javacall_directui.h>
+#endif
 #ifdef ENABLE_JSR_120
 #include <javacall_sms.h>
 #endif
@@ -196,7 +199,9 @@ static int JVM_Task(int argc, char **argv) {
 #ifdef ENABLE_DIO
   javacall_gpio_init();
 #endif
-
+#ifdef ENABLE_DIRECTUI
+	javacall_directui_init();
+#endif
 
   argc --;
   argv ++;
@@ -248,6 +253,9 @@ static int JVM_Task(int argc, char **argv) {
 	code = JVM_Start(NULL, NULL, argc, argv);
 #endif
 
+#ifdef ENABLE_DIRECTUI
+	javacall_directui_finalize();
+#endif
 #ifdef ENABLE_JSR_120
 	  javacall_sms_deinit();
 #endif
