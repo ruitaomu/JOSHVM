@@ -288,7 +288,6 @@ end:
 #define JAVACALL_JAVATASK_STARTUP_PARAM "=HeapMin81920", "=HeapCapacity81920", "-int", \
  	"com.sun.cldchi.test.HelloWorld"
 #endif
-#endif
 
 extern "C" void JavaTask(void) {
 #if ENABLE_JAVACALL_NATIVE_TEST && RUN_JAVACALL_NATIVE_TEST
