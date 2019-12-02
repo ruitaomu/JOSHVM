@@ -93,7 +93,7 @@ static char* javacall_static_properties_application_values[] = {
     "+17815511212",
     "1.1",
     "",
-    "COM0,COM1",
+    "COM0,COM1,COM2,COM3,COM4,COM5,COM6,COM7,COM8",
     "1.0",
     "1.0",
     "1.0",
