@@ -1570,7 +1570,7 @@ void Java_com_sun_cldchi_jvm_JVM_flushJarCaches(JVM_SINGLE_ARG_TRAPS) {
   JarFileParser::flush_caches();
 }
 
-void Java_com_joshvm_system_PlatformControl_reset0() {
+void Java_org_joshvm_system_PlatformControl_reset0() {
   OsMisc_hardware_power_reset();
 }
 

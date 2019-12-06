@@ -19,7 +19,7 @@
  * have any questions.
  */
 
-package com.joshvm.system;
+package org.joshvm.system;
 
 import org.joshvm.security.internal.*;
 
