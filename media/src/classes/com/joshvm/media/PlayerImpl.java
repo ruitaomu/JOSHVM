@@ -77,30 +77,32 @@ public class PlayerImpl {
 	public void setDataSource(String source) throws IOException {
 		String path = null;
 		boolean flag = false;
-		String newSource = source;
-		if (newSource.startsWith("file://")) {
-			// file
-			newSource = newSource.substring(7);
-			if (!isValidPath(newSource)) {
-				throw new IOException("invalid source");
+		String newSource = null;
+		if (isValidPath(source)) {
+			if (source.startsWith("file://")) {
+				// file
+				newSource = source.substring(7);
+				if (!newSource.startsWith("/")) {
+					newSource = "/" + newSource;
+				}
+			} else if (source.startsWith("res://")) {
+				// resource
+				path = source.substring(6);
+				newSource = getTempFile0();
+				int dotIndex = path.lastIndexOf('.');
+				if (dotIndex != -1 && dotIndex != (path.length() - 1)) {
+					if (path.indexOf('/', dotIndex) == -1) {
+						newSource += path.substring(dotIndex);
+					}
+				}
+				flag = true;
+			} else if (source.startsWith("/") || source.indexOf("://", 1) != -1) {
+				// file, http etc.
+				newSource = source;
 			}
-			if (!newSource.startsWith("/")) {
-				newSource = "/" + newSource;
-			}
-		} else if (newSource.startsWith("/")) {
-			// file
-			if (!isValidPath(newSource)) {
-				throw new IOException("invalid source");
-			}
-		} else if (newSource.startsWith("res://")) {
-			// resource
-			path = newSource.substring(6);
-			if (!isValidPath(path)) {
-				throw new IOException("invalid source");
-			}
-			newSource = getTempFile0();
-			flag = true;
-		} else if (newSource.indexOf("://", 1) == -1) {
+		}
+
+		if (newSource == null) {
 			throw new IOException("invalid source");
 		}
 
