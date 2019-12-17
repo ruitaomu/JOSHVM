@@ -426,7 +426,7 @@ javacall_handle configdb_load_from_fs(javacall_utf16* unicodeFileName, int fileN
                              JAVACALL_FILE_O_RDWR | JAVACALL_FILE_O_CREAT,
                              &file_handle);
     if (res != JAVACALL_OK) {
-        javacall_logging_printf(JAVACALL_LOGGING_ERROR, JC_FILE, "javacall_configdb_load(): ERROR - Can't open the dump file!\n");
+        javacall_logging_printf(JAVACALL_LOGGING_ERROR, JC_FILE, "javacall_configdb_load(): ERROR - Can't open the properties file!\n");
         return NULL;
     }
 
