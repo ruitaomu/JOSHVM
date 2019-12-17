@@ -118,4 +118,6 @@ public class WakeUpManager {
 	private native int getWordCount();
 
 	private native void getWords(WakeUpWord[] words);
+
+	private native void finalize();
 }

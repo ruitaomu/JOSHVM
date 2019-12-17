@@ -28,6 +28,15 @@ import com.joshvm.media.PlayerImpl;
  * MediaRecorder is used to record audio.
  */
 public class MediaRecorder {
+	/**
+	 * The state indicating that the recorder is not recording
+	 */
+	public static final int RECORDSTATE_STOPPED = 1;
+	/**
+	 * The state indicating that the recorder is recording
+	 */
+	public static final int RECORDSTATE_RECORDING = 3;
+
 	private PlayerImpl player;
 
 	/**
@@ -102,6 +111,16 @@ public class MediaRecorder {
 	 */
 	public void setOutputFormat(int outFormat) throws IllegalArgumentException {
 		player.setOutputFormat(outFormat);
+	}
+
+	/**
+	 * Returns the recording state.
+	 * 
+	 * @see #RECORDSTATE_STOPPED
+	 * @see #RECORDSTATE_RECORDING
+	 */
+	public int getRecordingState() {
+		return player.getState();
 	}
 
 	/**

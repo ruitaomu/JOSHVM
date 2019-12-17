@@ -133,4 +133,6 @@ public class VADController {
 	private native void resume0();
 
 	private native void stop0();
+
+	private native void finalize();
 }

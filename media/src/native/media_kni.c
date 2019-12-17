@@ -30,16 +30,19 @@
 #include <pcsl_memory.h>
 #include <pcsl_string.h>
 
-static int get_pcsl_string(jobject stringHandle, pcsl_string ** string)
+static int get_pcsl_string(jobject stringHandle, pcsl_string** string, int doThrow)
 {
     if (KNI_IsNullHandle(stringHandle)) {
-        KNI_ThrowNew(KNINullPointerException, NULL);
+        if (doThrow) {
+            KNI_ThrowNew(KNINullPointerException, NULL);
+        }
         return -1;
     } else {
-        pcsl_string * str = (pcsl_string *)pcsl_mem_malloc(sizeof(pcsl_string));
-
+        pcsl_string* str = (pcsl_string*)pcsl_mem_malloc(sizeof(pcsl_string));
         if (str == NULL) {
-            KNI_ThrowNew(KNIOutOfMemoryError, NULL);
+            if (doThrow) {
+                KNI_ThrowNew(KNIOutOfMemoryError, NULL);
+            }
             return -1;
         }
 
@@ -48,7 +51,7 @@ static int get_pcsl_string(jobject stringHandle, pcsl_string ** string)
             return -1;
         }
 
-        * string = str;
+        *string = str;
     }
     return 0;
 }
@@ -89,6 +92,56 @@ Java_com_joshvm_media_PlayerImpl_close0()
 
 KNIEXPORT
 KNI_RETURNTYPE_VOID
+Java_com_joshvm_media_PlayerImpl_finalize()
+{
+#if ENABLE_PCSL
+    int handle = -1;
+    jfieldID handle_field_id;
+    jfieldID tempfile_field_id;
+    pcsl_string* source = NULL;
+    int status = -1;
+    javacall_result result = JAVACALL_FAIL;
+
+    KNI_StartHandles(3);
+    KNI_DeclareHandle(playerObj);
+    KNI_DeclareHandle(classObj);
+    KNI_DeclareHandle(sourceObj);
+
+    KNI_GetThisPointer(playerObj);
+    KNI_GetObjectClass(playerObj, classObj);
+
+    handle_field_id = KNI_GetFieldID(classObj, "handle", "I");
+    tempfile_field_id = KNI_GetFieldID(classObj, "tempFile", "Ljava/lang/String;");
+    if (handle_field_id) {
+        handle = KNI_GetIntField(playerObj, handle_field_id);
+    }
+    if (handle != -1) {
+        result = javacall_media_close((javacall_handle)handle);
+        // javacall_printf("in finalize(). media close return %d\n", result);
+    }
+
+    if (tempfile_field_id) {
+        KNI_GetObjectField(playerObj, tempfile_field_id, sourceObj);
+        status = get_pcsl_string(sourceObj, &source, 0);
+        if (status == 0) {
+            const jbyte *ptr = pcsl_string_get_utf8_data(source);
+            if (ptr != NULL) {
+                result = javacall_media_remove_tempfile((char *)ptr);
+                // javacall_printf("in finalize(). remove %s return %d\n", ptr, result);
+                pcsl_string_release_utf8_data(ptr, source);
+            }
+            pcsl_string_free(source);
+            pcsl_mem_free(source);
+        }
+    }
+    KNI_EndHandles();
+#endif
+
+    KNI_ReturnVoid();
+}
+
+KNIEXPORT
+KNI_RETURNTYPE_VOID
 Java_com_joshvm_media_PlayerImpl_setSource0()
 {
 #if ENABLE_PCSL
@@ -102,7 +155,7 @@ Java_com_joshvm_media_PlayerImpl_setSource0()
 
     handle = (int)KNI_GetParameterAsInt(1);
     KNI_GetParameterAsObject(2, sourceObj);
-    status = get_pcsl_string(sourceObj, &source);
+    status = get_pcsl_string(sourceObj, &source, 1);
 
     if (status == 0) {
         const jbyte *ptr = pcsl_string_get_utf8_data(source);
@@ -402,7 +455,7 @@ Java_com_joshvm_media_PlayerImpl_setOutputFile0()
 
     handle = (int)KNI_GetParameterAsInt(1);
     KNI_GetParameterAsObject(2, filenameObj);
-    status = get_pcsl_string(filenameObj, &filename);
+    status = get_pcsl_string(filenameObj, &filename, 1);
 
     if (status == 0) {
         const jbyte *ptr = pcsl_string_get_utf8_data(filename);
@@ -624,6 +677,7 @@ Java_com_joshvm_media_MediaEventThread_finalizeEvent()
 {
 #if ENABLE_PCSL
     javacall_media_event_finalize();
+
 #endif
 
     KNI_ReturnVoid();
@@ -795,6 +849,17 @@ Java_org_joshvm_media_WakeUpManager_enable0()
 }
 
 KNIEXPORT
+KNI_RETURNTYPE_VOID
+Java_org_joshvm_media_WakeUpManager_finalize()
+{
+#if ENABLE_PCSL
+    javacall_media_wakeup_enable(0);
+#endif
+
+    KNI_ReturnVoid();
+}
+
+KNIEXPORT
 KNI_RETURNTYPE_INT
 Java_org_joshvm_media_WakeUpManager_getWordCount()
 {
@@ -917,6 +982,17 @@ Java_org_joshvm_media_VADController_stop0()
     if (result != JAVACALL_OK) {
         KNI_ThrowNew(KNIIOException, "failed to stop vad.");
     }
+#endif
+
+    KNI_ReturnVoid();
+}
+
+KNIEXPORT
+KNI_RETURNTYPE_VOID
+Java_org_joshvm_media_VADController_finalize()
+{
+#if ENABLE_PCSL
+    javacall_media_vad_stop();
 #endif
 
     KNI_ReturnVoid();

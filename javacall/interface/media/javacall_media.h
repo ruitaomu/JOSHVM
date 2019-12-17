@@ -102,6 +102,7 @@ javacall_result javacall_media_event_get(javacall_media_event_type* type,
         int* handle, javacall_result* result, int* userdata);
 
 javacall_result javacall_media_get_tempfile(javacall_media_filepath_info* info);
+javacall_result javacall_media_remove_tempfile(char* file);
 javacall_result javacall_media_get_rootdir(javacall_media_filepath_info* info);
 javacall_result javacall_media_get_ext_rootdir(javacall_media_filepath_info* info);
 javacall_result javacall_media_ext_rootdir_exists();

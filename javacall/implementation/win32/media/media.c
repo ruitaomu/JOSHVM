@@ -144,6 +144,10 @@ javacall_result javacall_media_get_tempfile(javacall_media_filepath_info* info) 
     return JAVACALL_FAIL;
 }
 
+javacall_result javacall_media_remove_tempfile(char* file) {
+    return JAVACALL_FAIL;
+}
+
 javacall_result javacall_media_get_rootdir(javacall_media_filepath_info* info) {
     return JAVACALL_FAIL;
 }

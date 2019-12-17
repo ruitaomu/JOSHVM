@@ -172,7 +172,11 @@ public class PlayerImpl {
 	}
 
 	public int getState() {
-		return getState0(handle);
+		int state = getState0(handle);
+		if (state == STATE_STOPPED || state == STATE_PAUSED || state == STATE_STARTED) {
+			return state;
+		}
+		return STATE_STOPPED;
 	}
 
 	public void setAudioSampleRate(int hz) throws IllegalArgumentException {
@@ -182,14 +186,14 @@ public class PlayerImpl {
 		setAudioSampleRate0(handle, hz);
 	}
 
-	public void setChannelConfig(int channelConfig) {
+	public void setChannelConfig(int channelConfig) throws IllegalArgumentException {
 		if (channelConfig != AudioFormat.CHANNEL_MONO && channelConfig != AudioFormat.CHANNEL_STEREO) {
 			throw new IllegalArgumentException("Unsupported channel configuration.");
 		}
 		setChannelConfig0(handle, channelConfig);
 	}
 
-	public void setAudioBitRate(int rate) {
+	public void setAudioBitRate(int rate) throws IllegalArgumentException {
 		if ((rate < 8) || (rate > 32) || (rate % 8 != 0)) {
 			throw new IllegalArgumentException(rate + " is not supported.");
 		}
@@ -251,6 +255,7 @@ public class PlayerImpl {
 			fc = (FileConnection) Connector.open("file://" + tempFile);
 			if (fc.exists()) {
 				fc.delete();
+				tempFile = null;
 			}
 		} catch (Exception e) {
 		} finally {
@@ -308,16 +313,11 @@ public class PlayerImpl {
 		}
 	}
 
-	private void finalize() {
-		try {
-			close();
-		} catch (Exception e) {
-		}
-	}
-
 	private native int open0(int type);
 
 	private native void close0(int handle);
+
+	private native void finalize();
 
 	private native void setSource0(int handle, String source);
 

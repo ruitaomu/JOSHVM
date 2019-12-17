@@ -28,6 +28,19 @@ import com.joshvm.media.PlayerImpl;
  * MediaPlayer is used to control playback of audio files.
  */
 public class MediaPlayer {
+	/**
+	 * indicates MediaPlayer state is stopped
+	 */
+	public static final int PLAYSTATE_STOPPED = 1;
+	/**
+	 * indicates MediaPlayer state is paused
+	 */
+	public static final int PLAYSTATE_PAUSED = 2;
+	/**
+	 * indicates MediaPlayer state is playing
+	 */
+	public static final int PLAYSTATE_PLAYING = 3;
+
 	private PlayerImpl player;
 	private String source;
 
@@ -59,6 +72,17 @@ public class MediaPlayer {
 	public void setDataSource(String source) throws IOException {
 		player.setDataSource(source);
 		this.source = source;
+	}
+
+	/**
+	 * Returns play state.
+	 * 
+	 * @see #PLAYSTATE_STOPPED
+	 * @see #PLAYSTATE_PAUSED
+	 * @see #PLAYSTATE_PLAYING
+	 */
+	public int getPlayState() {
+		return player.getState();
 	}
 
 	/**
