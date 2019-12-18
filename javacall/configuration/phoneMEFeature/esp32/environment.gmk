@@ -1,10 +1,10 @@
 #Flag USE_JSR_XX means that JSR_XX will be included to the javacall library if the flag
 #is set to 'true' (example: USE_JSR_XX=true). JSR_XX will not be included to the javacall
-#library if the flag USE_JSR_XX is not 'true' (example: USE_JSR_XX=false). 
+#library if the flag USE_JSR_XX is not 'true' (example: USE_JSR_XX=false).
 #
 #For each used JSR path to its particular implementation shall be specified explicitly as javacall
 #library can be formed from JSRs taken from different locations
-#JSR_XX_JC_IMPL_PATH varibale sets path to implementation 
+#JSR_XX_JC_IMPL_PATH varibale sets path to implementation
 #
 #For 'midp' USE_MIDP and MIDP_JC_IMPL_PATH variables are used
 #For 'nams' USE_NATIVE_AMS_JC and NATIVE_AMS_JC_IMPL_PATH variables are used
@@ -33,6 +33,11 @@ JSR_LIST += DIRECTUI
 USE_DIRECTUI=true
 endif
 
+ifeq ($(ENABLE_MEDIA), true)
+JSR_LIST += MEDIA
+USE_MEDIA=true
+endif
+
 USE_CLDC=true
 USE_MIDP=false
 
@@ -53,12 +58,18 @@ CELLULAR_JC_IMPL_PATH=$(JAVACALL_COMM_DIR)/implementation/$(JC_Platform)
 
 DIRECTUI_JC_IMPL_PATH=$(JAVACALL_COMM_DIR)/implementation/$(JC_Platform)
 
+MEDIA_JC_IMPL_PATH=$(JAVACALL_COMM_DIR)/implementation/$(JC_Platform)
+
 ifeq ($(USE_NATIVE_AMS_JC),)
 USE_NATIVE_AMS_JC=false
 endif
 
 ifeq ($(USE_DIRECTUI),true)
 SPECIFIC_DEFINITIONS+= -DENABLE_DIRECTUI=1
+endif
+
+ifeq ($(USE_MEDIA),true)
+SPECIFIC_DEFINITIONS+= -DENABLE_MEDIA=1
 endif
 
 # Switch native AMS function on/off
@@ -110,7 +121,9 @@ SPECIFIC_DEFINITIONS += -I$(PLATFORM_DIR)/joshvm/build/include \
 -I$(PLATFORM_DIR)/esp-idf/components/soc/esp32/include \
 -I$(PLATFORM_DIR)/esp-idf/components/heap/include \
 -I$(PLATFORM_DIR)/esp-idf/components/vfs/include \
+-I$(PLATFORM_DIR)/esp-idf/components/lwip/include/lwip \
 -I$(PLATFORM_DIR)/esp-idf/components/lwip/lwip/src/include \
+-I$(PLATFORM_DIR)/esp-idf/components/lwip/include/lwip/port \
 -I$(PLATFORM_DIR)/esp-idf/components/lwip/port/esp32/include \
 -I$(PLATFORM_DIR)/esp-idf/components/lwip/include/apps/sntp \
 -I$(PLATFORM_DIR)/esp-idf/components/lwip/include/apps \
@@ -129,20 +142,24 @@ SPECIFIC_DEFINITIONS += -I$(PLATFORM_DIR)/joshvm/build/include \
 
 SPECIFIC_DEFINITIONS += -O0 -ffunction-sections -fdata-sections -fstrict-volatile-bitfields -mlongcalls -nostdlib -Wextra -Wno-unused-parameter -Wno-sign-compare -fno-exceptions -mfix-esp32-psram-cache-issue -fno-strict-aliasing -fno-strict-overflow
 
+ifeq ($(ENABLE_DYNAMIC_PROP),true)
+SPECIFIC_DEFINITIONS+= -DENABLE_DYNAMIC_PROP=1
+endif
+
 ifeq ($(USE_JSR_120),true)
-SPECIFIC_DEFINITIONS+= -DENABLE_JSR_120=1 
+SPECIFIC_DEFINITIONS+= -DENABLE_JSR_120=1
 endif
 
 ifeq ($(USE_JSR_75),true)
-SPECIFIC_DEFINITIONS+= -DENABLE_JSR_75=1 
+SPECIFIC_DEFINITIONS+= -DENABLE_JSR_75=1
 endif
 
 ifeq ($(USE_DIO),true)
-SPECIFIC_DEFINITIONS+= -DENABLE_DIO=1 
+SPECIFIC_DEFINITIONS+= -DENABLE_DIO=1
 endif
 
 ifeq ($(USE_CELLULAR),true)
-SPECIFIC_DEFINITIONS+= -DENABLE_CELLULAR=1 
+SPECIFIC_DEFINITIONS+= -DENABLE_CELLULAR=1
 endif
 
 ifeq ($(USE_MULTIPLE_INSTANCES),true)

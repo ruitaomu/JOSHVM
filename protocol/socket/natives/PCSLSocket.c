@@ -424,6 +424,6 @@ Java_com_sun_cldc_io_j2me_socket_Protocol_close0() {
   KNI_ReturnVoid();
 }
 
-void notify_network_down() {
+extern "C" void notify_network_down() {
 	inited = 0;
 }
