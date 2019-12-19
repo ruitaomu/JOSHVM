@@ -27,7 +27,7 @@
 #include "driver/gpio.h"
 #include "esp_heap_caps.h"
 
-#if USE_JOSH_EVB
+#if USE_ESP_MINI || USE_JOSH_EVB
 #define PIN_NUM_MISO 21
 #define PIN_NUM_MOSI 25
 #define PIN_NUM_CLK  26

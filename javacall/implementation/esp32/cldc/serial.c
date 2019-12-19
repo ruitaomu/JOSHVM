@@ -38,7 +38,7 @@ static const int CLOSE = 0;
 
 static uart_port_t comm_ports[SUPPORTED_UART_NUM] = {UART_NUM_0, UART_NUM_1, UART_NUM_2};
 static int comm_state[SUPPORTED_UART_NUM] = {0, 0, 0};
-#if USE_JOSH_EVB
+#if USE_ESP_MINI || USE_JOSH_EVB
 static int comm_pins[SUPPORTED_UART_NUM][4] = {
 								{UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE},
 								{GPIO_NUM_27, GPIO_NUM_39, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE},
