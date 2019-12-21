@@ -1315,3 +1315,6 @@ char* javacall_inet_ntoa(javacall_ip_version ip_version, void *address) {
     //javacall_printf("javacall_inet_ntoa: trace\n");
 	return inet_ntoa(*((struct in_addr*)address));
 }
+
+void javacall_network_config() {
+}

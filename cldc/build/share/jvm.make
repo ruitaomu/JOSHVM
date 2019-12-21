@@ -186,6 +186,10 @@ ifeq ($(ENABLE_DIRECTUI), true)
 include $(DIRECTUI_DIR)/makefiles/vm_module.make
 endif
 
+ifeq ($(ENABLE_MEDIA), true)
+include $(MEDIA_DIR)/makefiles/vm_module.make
+endif
+
 include $(LOGGING_UTIL_DIR)/makefiles/vm_module.make
 
 ifeq ($(ENABLE_SECURITY), true)
@@ -328,6 +332,11 @@ endif
 ifeq ($(ENABLE_DIRECTUI), true)
 Obj_Files           +=         $(DIRECTUI_Obj_Files)
 ENABLE_CFLAGS       +=         -DENABLE_DIRECTUI
+endif
+
+ifeq ($(ENABLE_MEDIA), true)
+Obj_Files           +=         $(MEDIA_Obj_Files)
+ENABLE_CFLAGS       +=         -DENABLE_MEDIA
 endif
 
 ifeq ($(ENABLE_SECURITY), true)
@@ -648,7 +657,7 @@ print_env:
 # Names of the generated files
 #
 # -------------------------------------------------------
-BINARY_NAME        = cldc_vm
+BINARY_NAME        ?= cldc_vm
 JVM_EXE_NAME       = $(BINARY_NAME)$(BUILD_EXT)$(EXE_SUFFIX)
 JVM_MAP_NAME       = $(BINARY_NAME)$(BUILD_EXT).map
 JVM_LIB_NAME       = $(LIB_PREFIX)$(BINARY_NAME)$(BUILD_EXT)$(LIB_SUFFIX)

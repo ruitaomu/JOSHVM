@@ -38,19 +38,19 @@ static const int CLOSE = 0;
 
 static uart_port_t comm_ports[SUPPORTED_UART_NUM] = {UART_NUM_0, UART_NUM_1, UART_NUM_2};
 static int comm_state[SUPPORTED_UART_NUM] = {0, 0, 0};
+#if USE_ESP_MINI || USE_JOSH_EVB
 static int comm_pins[SUPPORTED_UART_NUM][4] = {
 								{UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE},
-#if ENABLE_ESP32_VOICE_SUPPORT
-								{GPIO_NUM_4, GPIO_NUM_12, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE},
-#else
-								{GPIO_NUM_4, GPIO_NUM_15, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE},
-#endif
-#if ENABLE_ESP32_VOICE_SUPPORT
-								{GPIO_NUM_13, GPIO_NUM_15, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE}
-#else
-								{GPIO_NUM_26, GPIO_NUM_27, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE}
-#endif
+								{GPIO_NUM_27, GPIO_NUM_39, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE},
+								{GPIO_NUM_27, GPIO_NUM_39, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE}
 							};
+#else
+static int comm_pins[SUPPORTED_UART_NUM][4] = {
+								{UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE},
+								{GPIO_NUM_4, GPIO_NUM_15, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE},
+								{GPIO_NUM_26, GPIO_NUM_27, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE}
+							};
+#endif
 
 static QueueHandle_t comm_queue0, comm_queue1, comm_queue2;
 static QueueHandle_t* comm_queues[SUPPORTED_UART_NUM] = {&comm_queue0, &comm_queue1, &comm_queue2};
@@ -131,8 +131,6 @@ static void uart_event_task(void *pvParameters) {
 	int* flag;
 	javacall_handle handle = (javacall_handle)pvParameters;
 	uart_port_t port = get_uart_port(handle);
-    uint8_t* dtmp = (uint8_t*) malloc(RD_BUF_SIZE);
-
 	uart_queue = get_uart_queue(handle);
 
 	if (uart_queue == NULL) {
@@ -143,7 +141,6 @@ static void uart_event_task(void *pvParameters) {
     for(;;) {
         //Waiting for UART event.
         if(xQueueReceive(*uart_queue, (void * )&event, (portTickType)portMAX_DELAY)) {
-		     bzero(dtmp, RD_BUF_SIZE);
             //ESP_LOGI(TAG, "uart[%d] event:", port);
             switch(event.type) {
                 //Event of UART receving data
@@ -192,8 +189,6 @@ static void uart_event_task(void *pvParameters) {
             }
         }
     }
-    free(dtmp);
-    dtmp = NULL;
     vTaskDelete(NULL);
 	ESP_LOGI(TAG, "uart task finish");
 }

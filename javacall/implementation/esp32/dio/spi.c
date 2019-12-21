@@ -27,10 +27,17 @@
 #include "driver/gpio.h"
 #include "esp_heap_caps.h"
 
+#if USE_ESP_MINI || USE_JOSH_EVB
+#define PIN_NUM_MISO 21
+#define PIN_NUM_MOSI 25
+#define PIN_NUM_CLK  26
+#define PIN_NUM_CS   -1
+#else
 #define PIN_NUM_MISO 25
 #define PIN_NUM_MOSI 23
 #define PIN_NUM_CLK  19
 #define PIN_NUM_CS   22
+#endif
 
 #define MAX_TRANSFER_SIZE 8192
 #define TRANS_QUEUE_LENGTH 1

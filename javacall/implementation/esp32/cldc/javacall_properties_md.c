@@ -6,3 +6,36 @@ short property_file_name[JAVACALL_MAX_FILE_NAME_LENGTH+1] = {'/','a','p','p','d'
 																'u','n','s','e','c','u','r','e','/',
 																'p','r','o','p','e','r','t','i','e','s','.','i','n','i','.','j','a','r',0};
 
+#ifdef ENABLE_DYNAMIC_PROP
+
+#define JC_PROP_BUFLEN (20)
+
+#if USE_ESP_MINI || USE_JOSH_EVB
+extern int joshvm_esp32_wifi_get_state(int* state);
+#endif
+javacall_result javacall_get_dynamic_property(const char* key, char** result) {
+	static char buff[JC_PROP_BUFLEN] = {0};
+
+	if (key == NULL) {
+		return JAVACALL_FAIL;
+	}
+
+	if (!strcmp(key, "wifi.state")) {
+		int state = 0;
+		#if USE_ESP_MINI || USE_JOSH_EVB
+		if (joshvm_esp32_wifi_get_state(&state) != 0) {
+			// unknown
+			state = 99;
+		}
+		#endif
+		snprintf(buff, JC_PROP_BUFLEN, "%d", state);
+	} else if (!strcmp(key, "microedition.commports")) {
+		snprintf(buff, JC_PROP_BUFLEN, "COM0,COM1,COM2");
+	} else {
+		return JAVACALL_FAIL;
+	}
+
+	*result = buff;
+	return JAVACALL_OK;
+}
+#endif

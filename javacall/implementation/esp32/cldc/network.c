@@ -1,4 +1,5 @@
 #include "javacall_network.h"
+#include "javacall_memory.h"
 #include "javacall_socket.h"
 #include "javacall_datagram.h"
 #include "javacall_events.h"
@@ -26,8 +27,15 @@
 #include "lwip/sys.h"
 #include "sdkconfig.h"
 
-#define JC_NETWORK_MALLOC(size) malloc(size)
+#define JC_NETWORK_MALLOC(size) javacall_malloc(size)
 
+#if USE_ESP_MINI || USE_JOSH_EVB
+#define ENABLE_DO_NETWORK_INIT 0
+#else
+#define ENABLE_DO_NETWORK_INIT 1
+#endif
+
+#if ENABLE_DO_NETWORK_INIT
 //======================= WIFI IMPLEMENTATION ==========================
 static enum {
     STA_UNINITIALIZED,
@@ -102,6 +110,7 @@ static void wifi_init_sta()
     javacall_logging_printf(JAVACALL_LOGGING_INFORMATION, JC_NETWORK, "wifi_init_sta finished.\n");
     wifi_status = STA_START;
 }
+#endif
 
 //=============== SOCKET IMPLEMENTATION ================
 #define MAXGETHOSTSTRUCT 32
@@ -274,6 +283,22 @@ static void dns_handler(void *arg) {
     }
 }
 
+#if 0
+static void checkSocketState(int fd) {
+    int status;
+    struct sockaddr_in sa;
+    int saLen = sizeof (sa);
+    status = getpeername(fd, (struct sockaddr*)&sa, &saLen);
+    if (status != 0) {
+        javacall_logging_printf(JAVACALL_LOGGING_ERROR, JC_NETWORK,
+                "getpeername error. (%d) (%s)\n", errno, strerror(errno));
+    } else {
+        // javacall_logging_printf(JAVACALL_LOGGING_INFORMATION, JC_NETWORK,
+        //         "peer addr is %x\n", sa.sin_addr.s_addr);
+    }
+}
+#endif
+
 static void socket_handler(void *arg) {
     const int start = JC_NET_TASK_QUEUE_SIZE_DNS;
     const int end = JC_NET_TASK_QUEUE_SIZE;
@@ -316,8 +341,11 @@ static void socket_handler(void *arg) {
                     continue;
                 }
                 fd = get_real_fd(slot_index);
-                FD_SET(fd, &rfds);
-                FD_SET(fd, &wfds);
+                if (taskQueue[index].event == EVENT_FD_READ) {
+                    FD_SET(fd, &rfds);
+                } else {
+                    FD_SET(fd, &wfds);
+                }
                 FD_SET(fd, &errfds);
                 if (fd > maxfd) {
                     maxfd = fd;
@@ -331,8 +359,8 @@ static void socket_handler(void *arg) {
             continue;
         }
 
-        tv.tv_sec = 1;
-        tv.tv_usec = 0;
+        tv.tv_sec = 0;
+        tv.tv_usec = 30 * 1000;
         selectRet = select(maxfd + 1, &rfds, &wfds, &errfds, &tv);
         if (selectRet == 0) {
             // time out
@@ -350,7 +378,9 @@ static void socket_handler(void *arg) {
                     //         "check socket request (%d, %d)\n", index, taskQueue[index].handle);
                     if (taskQueue[index].event == EVENT_FD_CONNECT) {
                         jc_event = JAVACALL_EVENT_SOCKET_CONNECT_COMPLETED;
-                        if (FD_ISSET(fd, &rfds) || FD_ISSET(fd, &wfds)) {
+                        if (FD_ISSET(fd, &wfds)) {
+                            // check
+                            // checkSocketState(fd);
                             result = JAVACALL_OK;
                         } else if (FD_ISSET(fd, &errfds)) {
                             result = JAVACALL_FAIL;
@@ -647,11 +677,10 @@ static int socket_read_common(void *handle,
     fd = get_real_fd(slot_index);
 
     bytesRead = recv(fd, (char*)pData, len, 0);
-    //javacall_printf("socket_read_common: fd=%d, %d, %s\n", *fd, lastError, strerror(lastError));
-
     if (bytesRead != -1) {
         *pBytesRead = bytesRead;
-        //javacall_printf("socket_read_common: JAVACALL_OK\n");
+        // javacall_logging_printf(JAVACALL_LOGGING_INFORMATION, JC_NETWORK,
+            // "socket_read_common: fd=%d read %d of %d\n", fd, bytesRead, len);
         return JAVACALL_OK;
     }
 
@@ -659,16 +688,19 @@ static int socket_read_common(void *handle,
         if (set_event_observer(handle, EVENT_FD_READ)) {
             return JAVACALL_FAIL;
         }
-        //javacall_printf("socket_read_common: JAVACALL_WOULD_BLOCK\n");
+        // javacall_logging_printf(JAVACALL_LOGGING_INFORMATION, JC_NETWORK,
+            // "socket_read_common: blocked\n");
         return JAVACALL_WOULD_BLOCK;
     }
 
     if (errno == EINTR) {
-        //javacall_printf("socket_read_common: JAVACALL_INTERRUPTED\n");
+        // javacall_logging_printf(JAVACALL_LOGGING_INFORMATION, JC_NETWORK,
+            // "socket_read_common: interrupted\n");
         return JAVACALL_INTERRUPTED;
     }
 
-    //javacall_printf("socket_read_common: JAVACALL_FAIL\n");
+    javacall_logging_printf(JAVACALL_LOGGING_INFORMATION, JC_NETWORK,
+            "socket_read_common: failed (%d, %s)\n", errno, strerror(errno));
     return JAVACALL_FAIL;
 }
 
@@ -719,14 +751,11 @@ static int socket_write_common(void *handle,
         return JAVACALL_FAIL;
     }
     fd = get_real_fd(slot_index);
-
     bytesSent = send(fd, pData, len, 0);
-    javacall_logging_printf(JAVACALL_LOGGING_INFORMATION, JC_NETWORK,
-            "socket_write_common: write %d of %d\n", bytesSent, len);
-
     if (bytesSent != -1) {
         *pBytesWritten = bytesSent;
-        //javacall_printf("socket_write_common: JAVACALL_OK\n");
+        // javacall_logging_printf(JAVACALL_LOGGING_INFORMATION, JC_NETWORK,
+            // "socket_write_common: write %d of %d\n", bytesSent, len);
         return JAVACALL_OK;
     }
 
@@ -734,16 +763,19 @@ static int socket_write_common(void *handle,
         if (set_event_observer(handle, EVENT_FD_WRITE)) {
             return JAVACALL_FAIL;
         }
-        //javacall_printf("socket_write_common: JAVACALL_WOULD_BLOCK\n");
+        // javacall_logging_printf(JAVACALL_LOGGING_INFORMATION, JC_NETWORK,
+            // "socket_write_common: blocked\n");
         return JAVACALL_WOULD_BLOCK;
     }
 
     if (errno == EINTR){
-        //javacall_printf("socket_write_common: JAVACALL_INTERRUPTED\n");
+        // javacall_logging_printf(JAVACALL_LOGGING_INFORMATION, JC_NETWORK,
+            // "socket_write_common: interrupted\n");
         return JAVACALL_INTERRUPTED;
     }
 
-    //javacall_printf("socket_write_common: JAVACALL_FAIL, lastError = %d\n", lastError);
+    javacall_logging_printf(JAVACALL_LOGGING_INFORMATION, JC_NETWORK,
+            "socket_write_common: failed (%d, %s)\n", errno, strerror(errno));
     return JAVACALL_FAIL;
 }
 
@@ -995,6 +1027,7 @@ javacall_network_get_local_ip_address_as_string(javacall_ip_version ip_version,
  * See javacall_network.h for definition.
  */
 javacall_result javacall_network_init_start(void) {
+#if ENABLE_DO_NETWORK_INIT
     if (!nvs_initialized) {
         //Initialize NVS
         esp_err_t ret = nvs_flash_init();
@@ -1025,12 +1058,16 @@ javacall_result javacall_network_init_start(void) {
     }
 
     return JAVACALL_WOULD_BLOCK;
+#else
+    return JAVACALL_OK;
+#endif
 }
 
 /**
  * See javacall_network.h for definition.
  */
 javacall_result javacall_network_init_finish() {
+#if ENABLE_DO_NETWORK_INIT
     switch (wifi_status) {
     case STA_CONNECTED:
         return JAVACALL_OK;
@@ -1041,6 +1078,8 @@ javacall_result javacall_network_init_finish() {
     case STA_UNINITIALIZED:
         return JAVACALL_FAIL;
     }
+#endif
+    return JAVACALL_OK;
 }
 
 /**
@@ -1237,4 +1276,357 @@ javacall_result /*OPTIONAL*/ javacall_socket_getremoteaddr(
 
 char* javacall_inet_ntoa(javacall_ip_version ip_version, void *address) {
     return inet_ntoa(*((struct in_addr*)address));
+}
+
+
+//=============== DATAGRAM IMPLEMENTATION ================
+
+/**
+ * Opens a datagram socket
+ *
+ * @param port The local port to attach to. If the port is 0 then the platform
+ *             will allocate an available port.
+ * @param pHandle address of variable to receive the handle; this is set
+ *        only when this function returns JAVACALL_OK.
+ *
+ * @return JAVACALL_OK if the function completes successfully
+ *         JAVACALL_FAIL if there was an IO error and IOException needs to be thrown;
+ */
+javacall_result javacall_datagram_open(
+    int port,
+    javacall_handle *pHandle) {
+
+    int fd;
+    int falsebuf = 0;
+    int status;
+    int flags;
+    struct sockaddr_in addr;
+
+    int slot_index = get_free_socket_slot();
+    if (slot_index < 0) {
+        javacall_logging_printf(JAVACALL_LOGGING_ERROR, JC_NETWORK,
+                "javacall_datagram_open() failed to allocate slot.\n");
+        return JAVACALL_FAIL;
+    }
+
+    fd = socket(AF_INET, SOCK_DGRAM, 0);
+    if (fd == -1) {
+        javacall_logging_printf(JAVACALL_LOGGING_ERROR, JC_NETWORK,
+                "javacall_datagram_open() failed to create socket, errno %d\n", errno);
+        return JAVACALL_FAIL;
+    }
+
+    // make socket non-blocking
+    flags = fcntl(fd, F_GETFL, 0);
+    status = fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+    if (status == -1) {
+        int ret = closesocket(fd);
+        javacall_logging_printf(JAVACALL_LOGGING_INFORMATION, JC_NETWORK,
+                "set nonblock failed. socket fd %d closed, returns %d\n", fd, ret);
+        return JAVACALL_FAIL;
+    }
+
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family      = AF_INET;
+    addr.sin_port        = PP_HTONS((unsigned short)port);
+    addr.sin_addr.s_addr = PP_HTONL(INADDR_ANY);
+
+    status = bind(fd, (struct sockaddr*)&addr, sizeof(addr));
+    if (status == -1) {
+        javacall_logging_printf(JAVACALL_LOGGING_INFORMATION, JC_NETWORK,
+                "bind failed. errno %d\n", errno);
+        int ret = closesocket(fd);
+        javacall_logging_printf(JAVACALL_LOGGING_INFORMATION, JC_NETWORK,
+                "socket fd %d closed, returns %d\n", fd, ret);
+        return JAVACALL_FAIL;
+    }
+
+    set_socket_slot(slot_index, fd);
+    *pHandle = (javacall_handle)get_virtual_fd(slot_index);
+    javacall_logging_printf(JAVACALL_LOGGING_INFORMATION, JC_NETWORK,
+            "javacall_datagram_open() returns handle=%d, fd=%d\n", *pHandle, fd);
+    return JAVACALL_OK;
+}
+
+static javacall_result datagram_read_common(
+    javacall_handle handle,
+    unsigned char *pAddress,
+    int *port,
+    char *buffer,
+    int length,
+    int *pBytesRead) {
+
+    int fd;
+    int bytesRead;
+    struct sockaddr_in addr;
+    int len = sizeof(struct sockaddr_in);
+    int slot_index = get_socket_slot_by_virtual_fd((int)handle);
+    if (slot_index < 0) {
+        javacall_logging_printf(JAVACALL_LOGGING_ERROR, JC_NETWORK,
+                "datagram_read_common: Invalid handle (%d)\n", (int)handle);
+        return JAVACALL_FAIL;
+    }
+    fd = get_real_fd(slot_index);
+    bytesRead = recvfrom(fd, buffer, length, 0, (struct sockaddr*)&addr, &len);
+    if (bytesRead != -1) {
+        memcpy(pAddress, &addr.sin_addr.s_addr, sizeof(addr.sin_addr.s_addr));
+        *port = PP_NTOHS(addr.sin_port);
+        *pBytesRead = bytesRead;
+        return JAVACALL_OK;
+    }
+
+    if (errno == EWOULDBLOCK) {
+        if (set_event_observer(handle, EVENT_FD_READ)) {
+            return JAVACALL_FAIL;
+        }
+        return JAVACALL_WOULD_BLOCK;
+    }
+
+    if (errno == EINTR) {
+        return JAVACALL_INTERRUPTED;
+    }
+
+    return JAVACALL_FAIL;
+}
+
+/**
+ * Initiates a read from a platform-specific datagram.
+ *
+ * <p>
+ * <b>NOTE:</b> The parameter <tt>buffer</tt> must be pre-allocated
+ * prior to calling this function.
+ *
+ * @param handle handle of an open connection
+ * @param pAddress base of byte array to receive the address
+ * @param port pointer to the port number of the remote location
+ *             that sent the datagram. <tt>port</tt> is set by
+ *             this function.
+ * @param buffer data received from the remote location. The contents
+ *               of <tt>buffer</tt> are set by this function.
+ * @param length the length of the buffer
+ * @param pBytesRead returns the number of bytes actually read; it is
+ *        set only when this function returns JAVACALL_OK
+ * @param pContext address of pointer variable to receive the context;
+ *        it is set only when this function returns JAVACALL_WOULD_BLOCK
+ *
+ * @return JAVACALL_OK for successful read operation
+ *         JAVACALL_WOULD_BLOCK if the operation would block
+ *         JAVACALL_INTERRUPTED for an Interrupted IO Exception
+ *         JAVACALL_FAIL for all other errors
+ */
+int javacall_datagram_recvfrom_start(
+    javacall_handle handle,
+    unsigned char *pAddress,
+    int *port,
+    char *buffer,
+    int length,
+    int *pBytesRead,
+    void **pContext) {
+
+    *pContext = NULL;
+    return datagram_read_common(handle, pAddress, port,
+            buffer, length, pBytesRead);
+}
+
+/**
+ * Finishes a pending read operation.
+ *
+ * @param handle handle of an open connection
+ * @param pAddress base of byte array to receive the address
+ * @param port pointer to the port number of the remote location
+ *             that sent the datagram. <tt>port</tt> is set by
+ *             this function.
+ * @param buffer data received from the remote location. The contents
+ *               of <tt>buffer</tt> are set by this function.
+ * @param length the length of the buffer
+ * @param pBytesRead returns the number of bytes actually read; it is
+ *        set only when this function returns JAVACALL_OK
+ * @param context the context returned by javacall_datagram_recvfrom_start
+ *
+ * @return JAVACALL_OK for successful read operation;
+ *         JAVACALL_WOULD_BLOCK if the caller must call the finish function again to complete the operation;
+ *         JAVACALL_INTERRUPTED for an Interrupted IO Exception
+ *         JAVACALL_FAIL for all other errors
+ */
+int javacall_datagram_recvfrom_finish(
+    javacall_handle handle,
+    unsigned char *pAddress,
+    int *port,
+    char *buffer,
+    int length,
+    int *pBytesRead,
+    void *context) {
+
+    (void)context;
+    return datagram_read_common(handle, pAddress, port,
+            buffer, length, pBytesRead);
+}
+
+static int datagram_write_common(
+    javacall_handle handle,
+    unsigned char *pAddress,
+    int port,
+    char *buffer,
+    int length,
+    int *pBytesWritten) {
+
+    int fd;
+    int bytesSent;
+    struct sockaddr_in addr;
+    int slot_index = get_socket_slot_by_virtual_fd((int)handle);
+    if (slot_index < 0) {
+        javacall_logging_printf(JAVACALL_LOGGING_ERROR, JC_NETWORK,
+                "datagram_write_common: Invalid handle (%d)\n", (int)handle);
+        return JAVACALL_FAIL;
+    }
+    fd = get_real_fd(slot_index);
+
+    addr.sin_family      = AF_INET;
+    addr.sin_port        = PP_HTONS((short)port);
+    memcpy(&addr.sin_addr.s_addr, pAddress, sizeof(addr.sin_addr.s_addr));
+
+    bytesSent = sendto(fd, buffer, length, 0, (struct sockaddr*)&addr, sizeof(addr));
+    javacall_logging_printf(JAVACALL_LOGGING_INFORMATION, JC_NETWORK,
+            "datagram_write_common: write %d of %d\n", bytesSent, length);
+
+    if (bytesSent != -1) {
+        *pBytesWritten = bytesSent;
+        return JAVACALL_OK;
+    }
+
+    if (errno == EWOULDBLOCK) {
+        if (set_event_observer(handle, EVENT_FD_WRITE)) {
+            return JAVACALL_FAIL;
+        }
+        return JAVACALL_WOULD_BLOCK;
+    }
+
+    if (errno == EINTR){
+        return JAVACALL_INTERRUPTED;
+    }
+
+    return JAVACALL_FAIL;
+}
+
+/**
+ * Initiates a write to a platform-specific datagram
+ *
+ * @param handle handle of an open connection
+ * @param pAddress base of byte array to receive the address
+ * @param port port number of the remote location to send the datagram
+ * @param buffer data to send to the remote location
+ * @param length amount of data, in bytes, to send to the remote
+ *               location
+ * @param pBytesWritten returns the number of bytes written after
+ *        successful write operation; only set if this function returns
+ *        JAVACALL_OK
+ * @param pContext address of a pointer variable to receive the context;
+ *    it is set only when this function returns JAVACALL_WOULD_BLOCK
+ *
+ * @return JAVACALL_OK for successful write operation;
+ *         JAVACALL_WOULD_BLOCK if the operation would block,
+ *         JAVACALL_INTERRUPTED for an Interrupted IO Exception
+ *         JAVACALL_FAIL for all other errors
+ */
+int javacall_datagram_sendto_start(
+    javacall_handle handle,
+    unsigned char *pAddress,
+    int port,
+    char *buffer,
+    int length,
+    int *pBytesWritten,
+    void **pContext) {
+
+    *pContext = NULL;
+    return datagram_write_common(handle, pAddress, port, buffer,
+            length, pBytesWritten);
+}
+
+/**
+ * Finishes a pending write operation.
+ *
+ * @param handle handle of an open connection
+ * @param pAddress base of byte array to receive the address
+ * @param port port number of the remote location to send the datagram
+ * @param buffer data to send to the remote location
+ * @param length amount of data, in bytes, to send to the remote
+ *               location
+ * @param pBytesWritten returns the number of bytes written after
+ *        successful write operation; only set if this function returns
+ *        JAVACALL_OK
+ * @param context the context returned by javacall_datagram_sendto_start
+ *
+ * @return JAVACALL_OK for successful write operation;
+ *         JAVACALL_WOULD_BLOCK if the caller must call the finish function again to complete the operation;
+ *         JAVACALL_INTERRUPTED for an Interrupted IO Exception
+ *         JAVACALL_FAIL for all other errors
+ */
+int javacall_datagram_sendto_finish(
+    javacall_handle handle,
+    unsigned char *pAddress,
+    int port,
+    char *buffer,
+    int length,
+    int *pBytesWritten,
+    void *context) {
+
+    (void)context;
+    return datagram_write_common(handle, pAddress, port, buffer,
+            length, pBytesWritten);
+}
+
+/**
+ * Initiates the closing of a platform-specific datagram socket.
+ *
+ * @param handle handle of an open connection
+ *
+ * @return JAVACALL_OK upon success
+ *         JAVACALL_FAIL for an error
+ */
+int javacall_datagram_close(
+    javacall_handle handle) {
+
+    int fd;
+    int slot_index = get_socket_slot_by_virtual_fd((int)handle);
+    if (slot_index < 0) {
+        javacall_logging_printf(JAVACALL_LOGGING_ERROR, JC_NETWORK,
+                "javacall_datagram_close: Invalid handle (%d). Already closed?\n", (int)handle);
+        return JAVACALL_OK;
+    }
+    fd = get_real_fd(slot_index);
+
+    if (closesocket(fd) == 0) {
+        release_socket_slot(slot_index);
+        javacall_logging_printf(JAVACALL_LOGGING_INFORMATION, JC_NETWORK,
+                "javacall_datagram_close: success. %d\n", (int)handle);
+        return JAVACALL_OK;
+    }
+
+    javacall_logging_printf(JAVACALL_LOGGING_ERROR, JC_NETWORK,
+            "javacall_datagram_close: failed. %d\n", (int)handle);
+    return JAVACALL_FAIL;
+}
+
+void javacall_network_config() {
+#if !ENABLE_DO_NETWORK_INIT
+    extern int joshvm_esp32_wifi_set(char* ssid, char* password, int force);
+    char ssid[32];
+    char password[64];
+    char* value;
+    if ((javacall_get_property("system.network.wifi.ssid", JAVACALL_INTERNAL_PROPERTY, &value) != JAVACALL_OK) ||
+        (value == NULL) || (strlen(value) == 0)) {
+        return;
+    } else {
+        strncpy(ssid, value, sizeof(ssid) - 1);
+    }
+
+    if ((javacall_get_property("system.network.wifi.password", JAVACALL_INTERNAL_PROPERTY, &value) != JAVACALL_OK) ||
+        (value == NULL) || (strlen(value) == 0)) {
+        password[0] = 0;
+    } else {
+        strncpy(password, value, sizeof(password) - 1);
+    }
+
+    joshvm_esp32_wifi_set(ssid, password, 1);
+#endif
 }

@@ -2,11 +2,7 @@
 extern "C" {
 #endif
     
-    
-#include <stdio.h>
-#include <stdlib.h>
-
-
+#include <esp_heap_caps.h>
 #include "javacall_memory.h"
 
 
@@ -25,7 +21,7 @@ void* javacall_memory_heap_allocate(long size, long* outSize) {
 
     void *ptr = NULL;
 
-    ptr = malloc(size);
+    ptr = heap_caps_malloc(size, MALLOC_CAP_SPIRAM);
     if (ptr == NULL){
         *outSize = 0;
     } else {
@@ -43,7 +39,7 @@ void* javacall_memory_heap_allocate(long size, long* outSize) {
  */
 void javacall_memory_heap_deallocate(void* heap) {
 
-    free(heap);
+    heap_caps_free(heap);
 }
 
 /**
@@ -54,7 +50,7 @@ void javacall_memory_heap_deallocate(void* heap) {
  * @return a pointer to the newly allocated memory
  */
 void* javacall_malloc(unsigned int size) {
-    return malloc(size);
+    return heap_caps_malloc(size, MALLOC_CAP_SPIRAM);
 }
 
 /**
@@ -63,7 +59,7 @@ void* javacall_malloc(unsigned int size) {
  * @param ptr pointer to allocated memory
  */
 void  javacall_free(void* ptr) {
-    free(ptr);
+    heap_caps_free(ptr);
 }
     
 #ifdef __cplusplus

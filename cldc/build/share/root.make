@@ -198,6 +198,11 @@ include $(DIRECTUI_DIR)/makefiles/classpath.make
 JOSH_BUILD_MODULES += josh-directui
 endif
 
+ifeq ($(ENABLE_MEDIA), true)
+include $(MEDIA_DIR)/makefiles/classpath.make
+JOSH_BUILD_MODULES += josh-media
+endif
+
 ifeq ($(ENABLE_JSR179), true)
 include $(JSR179_DIR)/makefiles/classpath.make
 JOSH_BUILD_MODULES += jsr179

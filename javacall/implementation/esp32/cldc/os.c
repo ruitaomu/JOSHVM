@@ -38,11 +38,9 @@ void javacall_os_flush_icache(unsigned char* address, int size) {
 }
 
 void javacall_os_hardware_reset() {
+	esp_restart();
 }
 
 #ifdef __cplusplus
 }
 #endif
-
-
-

@@ -107,6 +107,12 @@ int main(int argc, char **argv) {
   argc --;
   argv ++;
 
+  if (argc <= 0) {
+    JVMSPI_DisplayUsage(NULL);
+    code = 0;
+    goto end;
+  }
+
   while (true) {
     int n = JVM_ParseOneArg(argc, argv);
     if (n < 0) {
@@ -156,6 +162,7 @@ int main(int argc, char **argv) {
   javacall_directui_finalize();
 #endif
 
+end:
 #ifdef ENABLE_JSR_120
 		javacall_sms_deinit();
 #endif
@@ -166,6 +173,8 @@ int main(int argc, char **argv) {
 	  javacall_gpio_deinit();
 #endif
 
+    javacall_finalize_configurations();
+
 #if ENABLE_PCSL
 	  pcsl_file_finalize();
 #else
@@ -174,9 +183,6 @@ int main(int argc, char **argv) {
 
   javacall_events_finalize();
 
-  javacall_finalize_configurations();
-
-end:
 #if ENABLE_PCSL
   pcsl_mem_finalize();
 #endif

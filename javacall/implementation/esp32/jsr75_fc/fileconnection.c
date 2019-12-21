@@ -591,7 +591,7 @@ javacall_result javacall_fileconnection_get_total_size(const javacall_utf16* pat
  */
 javacall_result javacall_fileconnection_get_mounted_roots(javacall_utf16* /* OUT */ roots,
                                                           int rootsLen) {
-    static char* root = "internal/\nroot/\nprivate/\nPhone/";
+    static char* root = "internal/\nroot/\nprivate/\nPhone/\nsdcard/";
     int i;
     int len = strlen(root);
    
@@ -665,11 +665,10 @@ javacall_fileconnection_get_path_for_root(javacall_const_utf16_string rootName,
 	}
 
     static char* realroot_def[] = {JC_NATIVE_INTERNAL_ROOT_PATH,
-				JC_NATIVE_USER_ROOT_PATH, JC_NATIVE_USER_ROOT_PATH,
-				JC_NATIVE_USER_ROOT_PATH};
-    
-    static char* root[] = {"internal/", "root/", "private/", "Phone/"};
-    static char* propname[] = {"internal_dir", "root_dir", "private_dir", "user_dir"};
+                JC_NATIVE_USER_ROOT_PATH, JC_NATIVE_USER_ROOT_PATH,
+                JC_NATIVE_USER_ROOT_PATH, "/sdcard/"};
+    static char* root[] = {"internal/", "root/", "private/", "Phone/", "sdcard/"};
+    static char* propname[] = {"internal_dir", "root_dir", "private_dir", "user_dir", "sdcard_dir"};
     int i, r;
     int len;
     int ne;

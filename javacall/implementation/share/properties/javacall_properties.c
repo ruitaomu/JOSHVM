@@ -97,6 +97,14 @@ javacall_result javacall_get_property(const char* key,
     char* joined_key = NULL;
 
     if (JAVACALL_APPLICATION_PROPERTY == type) {
+        #ifdef ENABLE_DYNAMIC_PROP
+        {
+            extern javacall_result javacall_get_dynamic_property(const char* key, char** result);
+            if (JAVACALL_OK == javacall_get_dynamic_property(key, result)) {
+                return JAVACALL_OK;
+            }
+        }
+        #endif
         joined_key = javautil_string_strcat(application_prefix, key);
     } else if (JAVACALL_INTERNAL_PROPERTY == type) {
         joined_key = javautil_string_strcat(internal_prefix, key);

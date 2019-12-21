@@ -94,13 +94,14 @@ javacall_result javacall_event_send(unsigned char* binaryBuffer,
                                     int binaryBufferLen){
 
 	BaseType_t xHigherPriorityTaskWoken;
-	if (xQueueSendFromISR(xQueue, binaryBuffer, &xHigherPriorityTaskWoken)) {
+	if ((binaryBufferLen <= ITEM_SIZE) && xQueueSendFromISR(xQueue, binaryBuffer, &xHigherPriorityTaskWoken)) {
 		if( xHigherPriorityTaskWoken ) {
 	       portYIELD_FROM_ISR();
 	    }
 		return JAVACALL_OK;
 	} else {
-		javacall_logging_printf(JAVACALL_LOGGING_ERROR, JC_EVENTS, "javacall event queue send failed, queue full?\n");
+		javacall_logging_printf(JAVACALL_LOGGING_ERROR, JC_EVENTS,
+				"javacall event queue send failed, queue full? (%d)\n", *(int*)binaryBuffer);
 		return JAVACALL_FAIL;
 	}
 }    
