@@ -5,7 +5,11 @@ software intends to enable Java developers to develop/distribute/manage applicat
 resouce-limited hardware, such as MCUs, gateways, mobile devices, easily and securely.
   Recommended hardware resource for perfectly running JOSH:
   * 32-bit CPU, such as ARM, x86, MIPS
-  * no less than 512K bytes RAM space
+  * no less than 192K bytes RAM space
   * 700K bytes ROM space for code and runtime libraries
   
   For more information of JOSH project, please visit http://www.joshvm.org
+  
+  JOSH is distributed as pure open source software without any royalty fee. For 
+enterprise-level support for JOSH porting/application/solution, please contact via 
+email: service@joshvm.com
