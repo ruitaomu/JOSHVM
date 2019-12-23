@@ -49,6 +49,7 @@ static int inited = 0;
 
 KNIEXPORT KNI_RETURNTYPE_INT
 Java_com_sun_cldc_io_j2me_socket_Protocol_open0() {
+
 	void *pcslHandle = INVALID_HANDLE;
 	int status;
 	void* context = NULL;
@@ -57,200 +58,216 @@ Java_com_sun_cldc_io_j2me_socket_Protocol_open0() {
 
 	int in_addr = KNI_GetParameterAsInt(1);
 	int port = KNI_GetParameterAsInt(2);
+	int hasInited = inited;
 
-  	if (!inited) {
-		info = (SNIReentryData*)SNI_GetReentryData(NULL);
-		if (info == NULL) {
-    		res = pcsl_network_init_start(NULL);
-			REPORT_INFO(LC_PROTOCOL, "pcsl_network_init_start returns\n");
-		} else {
+	info = (SNIReentryData*)SNI_GetReentryData(NULL);
+	if (info == NULL) {
+		if (!hasInited) {
+			res = pcsl_network_init_start(NULL);
+			REPORT_INFO1(LC_PROTOCOL, "pcsl_network_init_start returns %d\n", res);
+			if (res == PCSL_NET_WOULDBLOCK) {
+				REPORT_INFO(LC_PROTOCOL, "Would block on network up signal...\n");
+				SNIEVT_wait(NETWORK_UP_SIGNAL, (int)0, NULL);
+			} else if (res == PCSL_NET_SUCCESS) {
+				REPORT_INFO(LC_PROTOCOL, "Network up!\n");
+				hasInited = 1;
+				inited = 1;
+			} else {
+				KNI_ThrowNew(KNIIOException, "Initialize network error!\n");
+			}
+		}
+		if (hasInited) {
+			SNI_BEGIN_RAW_POINTERS;
+			status = pcsl_socket_open_start(
+					(unsigned char*)&in_addr,
+					port, &pcslHandle, &context);
+			SNI_END_RAW_POINTERS;
+
+			if (status == PCSL_NET_SUCCESS) {
+
+			} else if (status == PCSL_NET_IOERROR) {
+				KNI_ThrowNew(KNIIOException, "IOError in socket open");
+			} else if (status == PCSL_NET_CONNECTION_NOTFOUND) {
+				KNI_ThrowNew(KNIConnectionNotFoundException, "ConnectionNotFound error in socket open");
+			}  else if (status == PCSL_NET_WOULDBLOCK) {
+				SNIEVT_wait(NETWORK_WRITE_SIGNAL, (int)pcslHandle,
+						context);
+			} else {
+				KNI_ThrowNew(KNIIOException, NULL);
+			}
+		}
+	} else {
+		SNIsignalType type = info->waitingFor;
+		if (type == NETWORK_UP_SIGNAL) {
 			if (info->status == 0) {
 				res = pcsl_network_init_finish();
-				REPORT_INFO(LC_PROTOCOL, "pcsl_network_init_finish returns\n");
+				REPORT_INFO1(LC_PROTOCOL, "pcsl_network_init_finish returns %d\n", res);
 			} else {
 				REPORT_INFO(LC_PROTOCOL, "pcsl_network_init_start error\n");
 				res = PCSL_NET_IOERROR;
 			}
-		}
-		if (res == PCSL_NET_WOULDBLOCK) {
-			REPORT_INFO(LC_PROTOCOL, "Would block on network up signal...\n");
-			SNIEVT_wait(NETWORK_UP_SIGNAL, (int)0, NULL);
-		} else if (res == PCSL_NET_SUCCESS) {
-			REPORT_INFO(LC_PROTOCOL, "Network up!\n");
-			inited = 1;
-			{
-	            SNI_BEGIN_RAW_POINTERS;
-	            status = pcsl_socket_open_start(
-	                     (unsigned char*)&in_addr,
-	                     port, &pcslHandle, &context);
-	            SNI_END_RAW_POINTERS;
+			if (res == PCSL_NET_WOULDBLOCK) {
+				REPORT_INFO(LC_PROTOCOL, "Would block on network up signal...\n");
+				SNIEVT_wait(NETWORK_UP_SIGNAL, (int)0, NULL);
+			} else if (res == PCSL_NET_SUCCESS) {
+				REPORT_INFO(LC_PROTOCOL, "Network up!\n");
+				inited = 1;
+				{
+					SNI_BEGIN_RAW_POINTERS;
+					status = pcsl_socket_open_start(
+							(unsigned char*)&in_addr,
+							port, &pcslHandle, &context);
+					SNI_END_RAW_POINTERS;
 
-	            if (status == PCSL_NET_SUCCESS) {
-					
-	            } else if (status == PCSL_NET_IOERROR) {
-	                KNI_ThrowNew(KNIIOException, "IOError in socket open");
-	            } else if (status == PCSL_NET_CONNECTION_NOTFOUND) {
-	                KNI_ThrowNew(KNIConnectionNotFoundException, "ConnectionNotFound error in socket open");
-	            } else if (status == PCSL_NET_WOULDBLOCK) {
-	                SNIEVT_wait(NETWORK_WRITE_SIGNAL, (int)pcslHandle,
-	                    context);
-	            } else {
-	                KNI_ThrowNew(KNIIOException, NULL);
-	            }
-	        }			
+					if (status == PCSL_NET_SUCCESS) {
+
+					} else if (status == PCSL_NET_IOERROR) {
+						KNI_ThrowNew(KNIIOException, "IOError in socket open");
+					} else if (status == PCSL_NET_CONNECTION_NOTFOUND) {
+						KNI_ThrowNew(KNIConnectionNotFoundException, "ConnectionNotFound error in socket open");
+					}  else if (status == PCSL_NET_WOULDBLOCK) {
+						SNIEVT_wait(NETWORK_WRITE_SIGNAL, (int)pcslHandle,
+								context);
+					} else {
+						KNI_ThrowNew(KNIIOException, NULL);
+					}
+				}
+			} else {
+				KNI_ThrowNew(KNIIOException, "Initialize network error!\n");
+			}
 		} else {
-			KNI_ThrowNew(KNIIOException, "Initialize network error!\n");
-		}
-  	} else {
-	    info = (SNIReentryData*)SNI_GetReentryData(NULL);
-	    if (info == NULL) {   /* First invocation */
-
-	        {
-	            SNI_BEGIN_RAW_POINTERS;
-	            status = pcsl_socket_open_start(
-	                     (unsigned char*)&in_addr,
-	                     port, &pcslHandle, &context);
-	            SNI_END_RAW_POINTERS;
-
-	            if (status == PCSL_NET_SUCCESS) {
-					
-	            } else if (status == PCSL_NET_IOERROR) {
-	                KNI_ThrowNew(KNIIOException, "IOError in socket open");
-	            } else if (status == PCSL_NET_CONNECTION_NOTFOUND) {
-	                KNI_ThrowNew(KNIConnectionNotFoundException, "ConnectionNotFound error in socket open");
-	            } else if (status == PCSL_NET_WOULDBLOCK) {
-	                SNIEVT_wait(NETWORK_WRITE_SIGNAL, (int)pcslHandle,
-	                    context);
-	            } else {
-	                KNI_ThrowNew(KNIIOException, NULL);
-	            }
-	        }
-	    } else {  /* Reinvocation after unblocking the thread */
-	        pcslHandle = (void *) info->descriptor;
-	        context = (void *)info->pContext;
+			// NETWORK_WRITE_SIGNAL
+			pcslHandle = (void *) info->descriptor;
+			context = (void *)info->pContext;
 			status = info->status;
 
 			if (status == PCSL_NET_SUCCESS) {
 	        	status = pcsl_socket_open_finish(pcslHandle, context);
 			}
 
-	        if (status == PCSL_NET_SUCCESS) {
-	            
-	        } else if (status == PCSL_NET_WOULDBLOCK) {
-	            SNIEVT_wait(NETWORK_WRITE_SIGNAL, (int)pcslHandle, context);
-	        } else  {            
-	        	void* dummy;
-	        	pcsl_socket_close_start(pcslHandle, &dummy);
-	            KNI_ThrowNew(KNIConnectionNotFoundException, "error in socket open");
-	        }
-	    }    	
+			if (status == PCSL_NET_SUCCESS) {
+			} else if (status == PCSL_NET_WOULDBLOCK) {
+				SNIEVT_wait(NETWORK_WRITE_SIGNAL, (int)pcslHandle, context);
+			} else {
+				void* dummy;
+				pcsl_socket_close_start(pcslHandle, &dummy);
+				KNI_ThrowNew(KNIConnectionNotFoundException, "error in socket open");
+			}
+		}
 	}
+
 	KNI_ReturnInt((jint)pcslHandle);
 }
-
 
 KNIEXPORT KNI_RETURNTYPE_INT
 Java_com_sun_cldc_io_j2me_socket_Protocol_getHostByName0() {
 
 	void *pcslHandle = INVALID_HANDLE;
-    int status;
-    void* context = NULL;
-    SNIReentryData* info;
+	int status;
+	void* context = NULL;
+	SNIReentryData* info;
 	int in_address = 0;
 	int in_len;
 	int res;
 
 	KNI_StartHandles(1);
-	
 	KNI_DeclareHandle(hostname_object);
 	KNI_GetParameterAsObject(1, hostname_object);
 	// hostname is always NUL terminated. See socket/Protocol.java for detail.
 	unsigned char *hostname = (unsigned char*) SNI_GetRawArrayPointer(hostname_object);
+	int hasInited = inited;
 
+	info = (SNIReentryData*)SNI_GetReentryData(NULL);
+	if (info == NULL) {
+		if (!hasInited) {
+			res = pcsl_network_init_start(NULL);
+			REPORT_INFO1(LC_PROTOCOL, "pcsl_network_init_start returns %d\n", res);
+			if (res == PCSL_NET_WOULDBLOCK) {
+				REPORT_INFO(LC_PROTOCOL, "Would block on network up signal...\n");
+				SNIEVT_wait(NETWORK_UP_SIGNAL, (int)0, NULL);
+			} else if (res == PCSL_NET_SUCCESS) {
+				REPORT_INFO(LC_PROTOCOL, "Network up!\n");
+				hasInited = 1;
+				inited = 1;
+			} else {
+				KNI_ThrowNew(KNIIOException, "Initialize network error!\n");
+			}
+		}
+		if (hasInited) {
+			SNI_BEGIN_RAW_POINTERS;
+			status = pcsl_network_gethostbyname_start(
+					(char*)hostname, (unsigned char*)&in_address, 4, &in_len, &pcslHandle, &context);
+			SNI_END_RAW_POINTERS;
 
-	if (!inited) {
-		info = (SNIReentryData*)SNI_GetReentryData(NULL);
-		if (info == NULL) {
-    		res = pcsl_network_init_start(NULL);
-			REPORT_INFO(LC_PROTOCOL, "pcsl_network_init_start returns\n");
-		} else {
+			if (status == PCSL_NET_SUCCESS) {
+
+			} else if (status == PCSL_NET_IOERROR) {
+				KNI_ThrowNew(KNIIOException, "IOError in socket gethostbyname");
+			} else if (status == PCSL_NET_WOULDBLOCK) {
+				SNIEVT_wait(HOST_NAME_LOOKUP_SIGNAL, (int)pcslHandle,
+					context);
+			} else {
+				KNI_ThrowNew(KNIIOException, NULL);
+			}
+		}
+	} else {
+		SNIsignalType type = info->waitingFor;
+		if (type == NETWORK_UP_SIGNAL) {
 			if (info->status == 0) {
 				res = pcsl_network_init_finish();
-				REPORT_INFO(LC_PROTOCOL, "pcsl_network_init_finish returns\n");
+				REPORT_INFO1(LC_PROTOCOL, "pcsl_network_init_finish returns %d\n", res);
 			} else {
 				REPORT_INFO(LC_PROTOCOL, "pcsl_network_init_start error\n");
 				res = PCSL_NET_IOERROR;
 			}
-		}
-		if (res == PCSL_NET_WOULDBLOCK) {
-			REPORT_INFO(LC_PROTOCOL, "Would block on network up signal...\n");
-			SNIEVT_wait(NETWORK_UP_SIGNAL, (int)0, NULL);
-		} else if (res == PCSL_NET_SUCCESS) {
-			REPORT_INFO(LC_PROTOCOL, "Network up!\n");
-			inited = 1;
-			{
-	            SNI_BEGIN_RAW_POINTERS;
-	            status = pcsl_network_gethostbyname_start(
-	                     (char*)hostname, (unsigned char*)&in_address, 4, &in_len, &pcslHandle, &context);
-	            SNI_END_RAW_POINTERS;
-
-	            if (status == PCSL_NET_SUCCESS) {
+			if (res == PCSL_NET_WOULDBLOCK) {
+				REPORT_INFO(LC_PROTOCOL, "Would block on network up signal...\n");
+				SNIEVT_wait(NETWORK_UP_SIGNAL, (int)0, NULL);
+			} else if (res == PCSL_NET_SUCCESS) {
+				REPORT_INFO(LC_PROTOCOL, "Network up!\n");
+				inited = 1;
+				{
+					SNI_BEGIN_RAW_POINTERS;
+					status = pcsl_network_gethostbyname_start(
+							(char*)hostname, (unsigned char*)&in_address, 4, &in_len, &pcslHandle, &context);
+					SNI_END_RAW_POINTERS;
 					
-	            } else if (status == PCSL_NET_IOERROR) {
-	                KNI_ThrowNew(KNIIOException, "IOError in socket gethostbyname");
-	            } else if (status == PCSL_NET_WOULDBLOCK) {
-	                SNIEVT_wait(HOST_NAME_LOOKUP_SIGNAL, (int)pcslHandle,
-	                    context);
-	            } else {
-	                KNI_ThrowNew(KNIIOException, NULL);
-	            }
-	        }			
+					if (status == PCSL_NET_SUCCESS) {
+					
+					} else if (status == PCSL_NET_IOERROR) {
+						KNI_ThrowNew(KNIIOException, "IOError in socket gethostbyname");
+					} else if (status == PCSL_NET_WOULDBLOCK) {
+						SNIEVT_wait(HOST_NAME_LOOKUP_SIGNAL, (int)pcslHandle,
+								context);
+					} else {
+						KNI_ThrowNew(KNIIOException, NULL);
+					}
+				}
+			} else {
+				KNI_ThrowNew(KNIIOException, "Initialize network error!\n");
+			}
 		} else {
-			KNI_ThrowNew(KNIIOException, "Initialize network error!\n");
-		}
-  	} else {
-	    info = (SNIReentryData*)SNI_GetReentryData(NULL);
-	    if (info == NULL) {   /* First invocation */
-
-	        {
-	            SNI_BEGIN_RAW_POINTERS;
-	            status = pcsl_network_gethostbyname_start(
-	                     (char*)hostname, (unsigned char*)&in_address, 4, &in_len, &pcslHandle, &context);
-	            SNI_END_RAW_POINTERS;
-
-	            if (status == PCSL_NET_SUCCESS) {
-					
-	            } else if (status == PCSL_NET_IOERROR) {
-	                KNI_ThrowNew(KNIIOException, "IOError in socket gethostbyname");
-	            } else if (status == PCSL_NET_WOULDBLOCK) {
-	                SNIEVT_wait(HOST_NAME_LOOKUP_SIGNAL, (int)pcslHandle,
-	                    context);
-	            } else {
-	                KNI_ThrowNew(KNIIOException, NULL);
-	            }
-	        }
-	    } else {  /* Reinvocation after unblocking the thread */
-	        pcslHandle = (void *) info->descriptor;
-	        context = (void *)info->pContext;
+			// HOST_NAME_LOOKUP_SIGNAL
+			pcslHandle = (void *) info->descriptor;
+			context = (void *)info->pContext;
 			status = info->status;
 
 			if (status == PCSL_NET_SUCCESS) {
 	        	status = pcsl_network_gethostbyname_finish((unsigned char*)&in_address, 4, &in_len, pcslHandle, context);
 			}
 
-	        if (status == PCSL_NET_SUCCESS) {
-	        } else if (status == PCSL_NET_WOULDBLOCK) {
-	            SNIEVT_wait(HOST_NAME_LOOKUP_SIGNAL, (int)pcslHandle, context);
-	        } else  {            
-	            KNI_ThrowNew(KNIConnectionNotFoundException, "error in socket gethostbyname");
-	        }
-    	}
-  	}
+			if (status == PCSL_NET_SUCCESS) {
+			} else if (status == PCSL_NET_WOULDBLOCK) {
+				SNIEVT_wait(HOST_NAME_LOOKUP_SIGNAL, (int)pcslHandle, context);
+			} else {
+				KNI_ThrowNew(KNIConnectionNotFoundException, "error in socket gethostbyname");
+			}
+		}
+	}
 
-    KNI_EndHandles();
-    KNI_ReturnInt(in_address);
+	KNI_EndHandles();
+	KNI_ReturnInt(in_address);
 }
-
 
 static int do_pcsl_read(void *handle, char *buffer, int length) {
 	SNIReentryData* info;
@@ -424,6 +441,6 @@ Java_com_sun_cldc_io_j2me_socket_Protocol_close0() {
   KNI_ReturnVoid();
 }
 
-extern "C" void notify_network_down() {
+KNIEXPORT void notify_network_down() {
 	inited = 0;
 }

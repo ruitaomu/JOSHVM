@@ -1191,3 +1191,5 @@ char* javacall_inet_ntoa(javacall_ip_version ip_version, void *address) {
 	return inet_ntoa(*((struct in_addr*)address));
 }
 
+void javacall_network_config() {
+}

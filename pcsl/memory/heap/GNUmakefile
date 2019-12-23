@@ -38,6 +38,9 @@ ifdef PCSL_PLATFORM
 include $(PCSL_DIR)/makefiles/top.gmk
 endif
 
+ifdef DEFAULT_POOL_SIZE
+CFLAGS += -DDEFAULT_POOL_SIZE=$(DEFAULT_POOL_SIZE)
+endif
 
 # define 'all' target and all dependencies
 # 'all' is the default target
