@@ -3,9 +3,14 @@ ifeq ($(JAVACALL_DIR),)
 $(error JAVACALL_DIR is not set.)
 endif
 
+ifneq ($(TOOLCHAIN_HOME_DIR),)
 BUILDTOOLS_BIN_DIR := $(TOOLCHAIN_HOME_DIR)/bin
 CC=$(BUILDTOOLS_BIN_DIR)/xtensa-esp32-elf-gcc
 AR=$(BUILDTOOLS_BIN_DIR)/xtensa-esp32-elf-ar
+else
+CC=xtensa-esp32-elf-gcc
+AR=xtensa-esp32-elf-ar
+endif
 
 ifeq ($(TARGET_BOARD),ESP_MINI)
 	SPECIFIC_DEFINITIONS+= -DUSE_ESP_MINI=1

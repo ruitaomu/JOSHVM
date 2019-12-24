@@ -113,32 +113,34 @@ UTILITIES =                 \
 #Compile options that are not common for all configurations can be specified in
 #SPECIFIC_DEFINITIONS variable
 SPECIFIC_DEFINITIONS += -I$(BOARD_EXT_DIR)/joshvm/build/include \
--I$(PLATFORM_DIR)/esp-idf/components/esp32/include \
--I$(PLATFORM_DIR)/esp-idf/components/freertos/include \
--I$(PLATFORM_DIR)/esp-idf/components/log/include \
--I$(PLATFORM_DIR)/esp-idf/components/driver/include \
--I$(PLATFORM_DIR)/esp-idf/components/soc/include \
--I$(PLATFORM_DIR)/esp-idf/components/soc/esp32/include \
--I$(PLATFORM_DIR)/esp-idf/components/heap/include \
--I$(PLATFORM_DIR)/esp-idf/components/vfs/include \
--I$(PLATFORM_DIR)/esp-idf/components/lwip/include/lwip \
--I$(PLATFORM_DIR)/esp-idf/components/lwip/lwip/src/include \
--I$(PLATFORM_DIR)/esp-idf/components/lwip/include/lwip/port \
--I$(PLATFORM_DIR)/esp-idf/components/lwip/port/esp32/include \
--I$(PLATFORM_DIR)/esp-idf/components/lwip/include/apps/sntp \
--I$(PLATFORM_DIR)/esp-idf/components/lwip/include/apps \
--I$(PLATFORM_DIR)/esp-idf/components/newlib/platform_include \
--I$(PLATFORM_DIR)/esp-idf/components/nvs_flash/include \
--I$(PLATFORM_DIR)/esp-idf/components/spi_flash/include \
--I$(PLATFORM_DIR)/esp-idf/components/tcpip_adapter/include \
--I$(PLATFORM_DIR)/esp-idf/components/spiffs/include \
--I$(PLATFORM_DIR)/esp-idf/components/xtensa/include \
--I$(PLATFORM_DIR)/esp-idf/components/xtensa/esp32/include \
--I$(PLATFORM_DIR)/esp-idf/components/esp_rom/include \
--I$(PLATFORM_DIR)/esp-idf/components/esp_common/include \
--I$(PLATFORM_DIR)/esp-idf/components/esp_wifi/include \
--I$(PLATFORM_DIR)/esp-idf/components/esp_event/include \
--I$(PLATFORM_DIR)/esp-idf/components/esp_ringbuf/include
+-I$(PLATFORM_DIR)/components/esp32/include \
+-I$(PLATFORM_DIR)/components/freertos/include \
+-I$(PLATFORM_DIR)/components/log/include \
+-I$(PLATFORM_DIR)/components/driver/include \
+-I$(PLATFORM_DIR)/components/soc/include \
+-I$(PLATFORM_DIR)/components/soc/esp32/include \
+-I$(PLATFORM_DIR)/components/heap/include \
+-I$(PLATFORM_DIR)/components/vfs/include \
+-I$(PLATFORM_DIR)/components/lwip/include/lwip \
+-I$(PLATFORM_DIR)/components/lwip/lwip/src/include \
+-I$(PLATFORM_DIR)/components/lwip/include/lwip/port \
+-I$(PLATFORM_DIR)/components/lwip/port/esp32/include \
+-I$(PLATFORM_DIR)/components/lwip/include/apps/sntp \
+-I$(PLATFORM_DIR)/components/lwip/include/apps \
+-I$(PLATFORM_DIR)/components/newlib/platform_include \
+-I$(PLATFORM_DIR)/components/nvs_flash/include \
+-I$(PLATFORM_DIR)/components/spi_flash/include \
+-I$(PLATFORM_DIR)/components/tcpip_adapter/include \
+-I$(PLATFORM_DIR)/components/spiffs/include \
+-I$(PLATFORM_DIR)/components/xtensa/include \
+-I$(PLATFORM_DIR)/components/xtensa/esp32/include \
+-I$(PLATFORM_DIR)/components/esp_rom/include \
+-I$(PLATFORM_DIR)/components/esp_common/include \
+-I$(PLATFORM_DIR)/components/esp_wifi/include \
+-I$(PLATFORM_DIR)/components/esp_event/include \
+-I$(PLATFORM_DIR)/components/esp_ringbuf/include \
+-I$(PLATFORM_DIR)/components/esp_netif/include \
+-I$(PLATFORM_DIR)/components/newlib/include
 
 SPECIFIC_DEFINITIONS += -O0 -ffunction-sections -fdata-sections -fstrict-volatile-bitfields -mlongcalls -nostdlib -Wextra -Wno-unused-parameter -Wno-sign-compare -fno-exceptions -mfix-esp32-psram-cache-issue -fno-strict-aliasing -fno-strict-overflow
 

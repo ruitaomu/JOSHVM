@@ -90,9 +90,10 @@ then
 	BUILD_CLDC=true
 fi
 
-if [ -z "${TOOLCHAIN_HOME_DIR}" ]
+if [ -z "${PLATFORM_DIR}" ]
 then
-	echo TOOLCHAIN_HOME_DIR should be set to cross compiler tools home
+	echo PLATFORM_DIR set to ${IDF_PATH}
+	PLATFORM_DIR=${IDF_PATH}  
 fi
 
 if [ "${TARGET_BOARD}" = "ESP_WROVER" ]
