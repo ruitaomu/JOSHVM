@@ -63,6 +63,10 @@ void javacall_os_hardware_reset() {
 	rt_hw_cpu_reset();
 }
 
+int javacall_os_set_system_time(javacall_int64 time) {
+	return JAVACALL_NOT_IMPLEMENTED;
+}
+
 #ifdef RT_THREAD_LIBC_WORKAROUND
 void __libc_fini_array(void)
 {

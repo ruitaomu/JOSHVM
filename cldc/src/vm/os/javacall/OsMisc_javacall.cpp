@@ -91,6 +91,10 @@ void OsMisc_hardware_power_reset() {
 	javacall_os_hardware_reset();
 }
 
+int OsMisc_set_system_time(jlong time) {
+  return javacall_os_set_system_time(time);
+}
+
 #ifdef __cplusplus
 }
 #endif

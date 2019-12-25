@@ -82,6 +82,10 @@ void OsMisc_page_unprotect() {
 void OsMisc_hardware_power_reset() {
 }
 
+int OsMisc_set_system_time(jlong time) {
+  return -1;
+}
+
 #ifdef __cplusplus
 }
 #endif
