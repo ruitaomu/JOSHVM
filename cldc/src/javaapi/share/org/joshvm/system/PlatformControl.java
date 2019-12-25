@@ -25,17 +25,27 @@ import org.joshvm.security.internal.*;
 
 public final class PlatformControl {
 	private SecurityToken securityToken;
-	
-	private PlatformControl() {};
-	
+
+	private PlatformControl() {
+	};
+
 	public PlatformControl(SecurityToken token) {
 		securityToken = token;
 	}
-	
+
 	public void reset() {
 		securityToken.checkIfPermissionAllowed(Permissions.AMS);
 		reset0();
 	}
 
+	public boolean setCurrentTimeMillis(long ms) {
+		securityToken.checkIfPermissionAllowed(Permissions.AMS);
+		if (ms < 0) {
+			return false;
+		}
+		return setSystemTime(ms);
+	}
+
 	private native void reset0();
+	private native boolean setSystemTime(long ms);
 }
