@@ -39,9 +39,6 @@
 #define VAD_OFF_TIME 800
 #define pause_resume_flag_resume 0
 #define pause_resume_flag_pause 1
-#ifdef CONFIG_ESP_LYRATD_MINI_V1_1_BOARD
-#define CONFIG_ESP_LYRAT_MINI_V1_1_BOARD
-#endif
 
 //---enum
 typedef enum {
@@ -167,7 +164,7 @@ static void rec_engine_task(void *handle)
 	i2s_stream_cfg_t i2s_cfg = I2S_STREAM_CFG_DEFAULT();
 	i2s_cfg.i2s_config.sample_rate = 48000;
 	i2s_cfg.type = AUDIO_STREAM_READER;
-#if defined CONFIG_ESP_LYRAT_MINI_V1_1_BOARD
+#if (defined CONFIG_ESP_LYRAT_MINI_V1_1_BOARD) || (defined CONFIG_JOSH_EVB_MEGA_ESP32_V1_0_BOARD)
 	i2s_cfg.i2s_port = 1;
 #endif
 	i2s_cfg.i2s_config.intr_alloc_flags = ESP_INTR_FLAG_LEVEL1 | ESP_INTR_FLAG_LEVEL2 | ESP_INTR_FLAG_LEVEL3;

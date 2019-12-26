@@ -321,7 +321,6 @@ joshvm_err_t joshvm_esp32_wifi_set(char* ssid, char* password, int force)
 joshvm_err_t joshvm_esp32_wifi_get_state(int* state)
 {
 	*state = app_wifi_state;
-	printf("wifi_state :%d\n",app_wifi_state);
 	return JOSHVM_OK;
 }
 
