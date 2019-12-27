@@ -24,9 +24,7 @@
 #define TAG  "JSOHVM_ESP32_RECORDER"
 //16000/1000*30ms
 #define VOICEBUFF_SIZE 480
-#ifdef CONFIG_ESP_LYRATD_MINI_V1_1_BOARD
-#define CONFIG_ESP_LYRAT_MINI_V1_1_BOARD
-#endif
+
 //---creater cfg 
 #define RECORD_RATE         48000
 #define RECORD_CHANNEL      2
@@ -110,8 +108,8 @@ static esp_err_t rsp_filter_set_dest_info(audio_element_handle_t self, int dest_
 audio_element_handle_t create_i2s_stream(int sample_rates, int bits, int channels, audio_stream_type_t type)
 {
     i2s_stream_cfg_t i2s_cfg = I2S_STREAM_CFG_DEFAULT();
-	#ifdef CONFIG_ESP_LYRAT_MINI_V1_1_BOARD
-		//printf("CONFIG_ESP_LYRAT_MINI_V1_1_BOARD\n");
+	#if (defined CONFIG_ESP_LYRAT_MINI_V1_1_BOARD) || (defined CONFIG_JOSH_EVB_MEGA_ESP32_V1_0_BOARD) 
+		//printf("ESP_LYRAT_MINI_V1_1_BOARD or MEGA_ESP32_V1_0_BOARD\n");
 		if(AUDIO_STREAM_READER == type){
 			i2s_cfg.i2s_port = 1;	
 			i2s_cfg.i2s_config.use_apll = 0;
