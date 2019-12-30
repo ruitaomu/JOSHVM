@@ -8,7 +8,8 @@ resouce-limited hardware, such as MCUs, gateways, mobile devices, easily and sec
   * no less than 192K bytes RAM space
   * 700K bytes ROM space for code and runtime libraries
   
-  For more information of JOSH project, please visit http://www.joshvm.org
+  For more information of JOSH project, please visit http://www.joshvm.org, and wiki page
+https://github.com/JOSHDevel/JOSHVM/wiki for more resources/documents
   
   JOSH is distributed as pure open source software without any royalty fee. For 
 enterprise-level support for JOSH porting/application/solution, please contact via 
