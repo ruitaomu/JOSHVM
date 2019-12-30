@@ -11,6 +11,5 @@ resouce-limited hardware, such as MCUs, gateways, mobile devices, easily and sec
   For more information of JOSH project, please visit http://www.joshvm.org, and wiki page
 https://github.com/JOSHDevel/JOSHVM/wiki for more resources/documents
   
-  JOSH is distributed as pure open source software without any royalty fee. For 
-enterprise-level support for JOSH porting/application/solution, please contact via 
-email: service@joshvm.com
+  JOSH is distributed as pure open source software without warranty. For enterprise-level
+support of JOSH porting/application/solution, please contact via email: service@joshvm.com
