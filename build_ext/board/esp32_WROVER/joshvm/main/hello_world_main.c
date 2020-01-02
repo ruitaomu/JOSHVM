@@ -157,12 +157,11 @@ void app_main()
 		rename_spiffs("/appdb/unsecure", "unsecadb", "/appdb/unsecure/_factory.ini", "/appdb/unsecure/properties.ini.jar");
 	}
 	
-	if (exist_spiffs("/appdb/unsecure", "unsecadb", "/appdb/unsecure/properties.ini.jar")) {
-		printf("Starting JOSH VM...\n");
-		JavaTask();
-	} else {
-		printf("Can't find properties file, failed to start JOSH VM\n");
+	if (!exist_spiffs("/appdb/unsecure", "unsecadb", "/appdb/unsecure/properties.ini.jar")) {
+		printf("Can't find properties file\n");
 	}
+	printf("Starting JOSH VM...\n");
+	JavaTask();
 
     for (int i = 10; i >= 0; i--) {
         printf("Restarting in %d seconds...\n", i);
