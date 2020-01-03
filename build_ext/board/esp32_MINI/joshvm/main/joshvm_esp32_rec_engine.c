@@ -18,8 +18,9 @@
 #include "i2s_stream.h"
 #include "raw_stream.h"
 #include "filter_resample.h"
-#include "esp_sr_iface.h"
-#include "esp_sr_models.h"
+#include "esp_wn_iface.h"
+#include "esp_wn_models.h"
+#include "rec_eng_helper.h"
 #include "sdkconfig.h"
 #include "audio_mem.h"
 #include "esp_audio.h"
@@ -84,9 +85,7 @@ typedef struct{
 static const char *TAG = "JOSHVM_REC_ENGINE";
 rec_engine_t rec_engine  = {WAKEUP_DISABLE,VAD_STOP,pause_resume_flag_resume,1000,NULL,NULL};
 static int8_t need_notify_vad_stop = false;
-//static uint16_t que_val = 0;
 static int8_t task_run =1;
-//static QueueHandle_t vad_que = NULL;
 static 	int8_t vad_writer_buff_flag = 0;
 extern joshvm_media_t *joshvm_media_vad;
 extern uint8_t wakeup_obj_created_status;
@@ -136,22 +135,26 @@ static void rec_engine_vad_callback(int16_t type)
 
 static void rec_engine_task(void *handle)
 {
-	//vad_que = xQueueCreate(4, sizeof(uint16_t));	
-	const esp_sr_iface_t *model = &esp_sr_wakenet5_quantized;
-	model_iface_data_t *iface = model->create(DET_MODE_90);
-	int audio_chunksize = model->get_samp_chunksize(iface);
-	audio_chunksize = audio_chunksize * sizeof(short);
 	rec_engine_t* rec_engine = (rec_engine_t*)handle;
 	vad_state_t last_vad_state = 0;
 	vad_state_t vad_state = 0;
 	uint32_t written_size = 0;
-	int16_t *buff = (int16_t *)malloc(audio_chunksize * sizeof(short));
-	if (NULL == buff) {
-		ESP_LOGE(TAG, "Memory allocation failed!");
-		model->destroy(iface);
-		model = NULL;
-		return;
-	}
+
+    esp_wn_iface_t *wakenet;
+    model_coeff_getter_t *model_coeff_getter;
+    model_iface_data_t *model_data;
+
+    get_wakenet_iface(&wakenet);
+    get_wakenet_coeff(&model_coeff_getter);
+    model_data = wakenet->create(model_coeff_getter, DET_MODE_90);
+    int audio_chunksize = wakenet->get_samp_chunksize(model_data);
+    int16_t *buff = (int16_t *)malloc(audio_chunksize * sizeof(short));
+    if (NULL == buff) {
+        ESP_LOGE(TAG, "Memory allocation failed!");
+        wakenet->destroy(model_data);
+        model_data = NULL;
+        return;
+    }
 
 	audio_pipeline_handle_t pipeline;
 	audio_element_handle_t filter, raw_read,i2s_stream_reader;
@@ -160,12 +163,12 @@ static void rec_engine_task(void *handle)
 	pipeline = audio_pipeline_init(&pipeline_cfg);
 	mem_assert(pipeline);
 
-	//joshvm_esp32_i2s_create();	
 	i2s_stream_cfg_t i2s_cfg = I2S_STREAM_CFG_DEFAULT();
 	i2s_cfg.i2s_config.sample_rate = 48000;
 	i2s_cfg.type = AUDIO_STREAM_READER;
 #if (defined CONFIG_ESP_LYRAT_MINI_V1_1_BOARD) || (defined CONFIG_JOSH_EVB_MEGA_ESP32_V1_0_BOARD)
 	i2s_cfg.i2s_port = 1;
+	i2s_cfg.i2s_config.channel_format = I2S_CHANNEL_FMT_RIGHT_LEFT;
 #endif
 	i2s_cfg.i2s_config.intr_alloc_flags = ESP_INTR_FLAG_LEVEL1 | ESP_INTR_FLAG_LEVEL2 | ESP_INTR_FLAG_LEVEL3;
 	i2s_stream_reader = i2s_stream_init(&i2s_cfg);
@@ -193,7 +196,7 @@ static void rec_engine_task(void *handle)
 		
 	task_run = 1;
 	while (task_run) {
-		raw_stream_read(raw_read, (char *)buff, audio_chunksize);
+		raw_stream_read(raw_read, (char *)buff, audio_chunksize * sizeof(short));
 		if((rec_engine->vad_state == VAD_START) || (rec_engine->vad_state == VAD_RESUME)){
 			vad_state = vad_process(vad_inst, buff);
 
@@ -228,7 +231,7 @@ static void rec_engine_task(void *handle)
 		}
 
 		if(rec_engine->wakeup_state == WAKEUP_ENABLE){
-			int keyword = model->detect(iface, (int16_t *)buff);
+			int keyword = wakenet->detect(model_data, (int16_t *)buff);
 			switch (keyword) {
 				case WAKE_UP:
 					ESP_LOGI(TAG, "Wake up");
@@ -246,6 +249,7 @@ static void rec_engine_task(void *handle)
 			}
 		}
 	}
+	
     ESP_LOGI(TAG, "[ 5 ] Destroy VAD");
     vad_destroy(vad_inst);
 	ESP_LOGI(TAG, "[ 6 ] Stop audio_pipeline");	
@@ -263,22 +267,10 @@ static void rec_engine_task(void *handle)
 	}
 	audio_element_deinit(filter);
 
-	model->destroy(iface);
-	model = NULL;
-	free(buff);
-	buff = NULL;	
-	/*if(vad_que != NULL){
-		vQueueDelete(vad_que);
-		vad_que = NULL;
-	}	*/
-	/*
-	if(rec_engine->vad_state == VAD_START){
-		joshvm_rec_engine_destroy(rec_engine, VAD_STOP);
-		joshvm_esp32_media_close(joshvm_media_vad);
-	}else{
-		joshvm_rec_engine_destroy(rec_engine, WAKEUP_DISABLE);
-	}*/
-	//josh_i2s_stream_reader = NULL;
+    wakenet->destroy(model_data);
+    model_data = NULL;
+    free(buff);
+    buff = NULL;	
 	vTaskDelete(NULL);
 }
 

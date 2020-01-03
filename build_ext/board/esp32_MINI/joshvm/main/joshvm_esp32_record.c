@@ -15,11 +15,6 @@
 #include "opus_encoder.h"
 #include "esp_log.h"
 
-//test
-#include "esp_sr_iface.h"
-#include "esp_sr_models.h"
-#include "esp_vad.h"
-
 //---define
 #define TAG  "JSOHVM_ESP32_RECORDER"
 //16000/1000*30ms
