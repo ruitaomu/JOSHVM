@@ -32,17 +32,4 @@ public class AudioFormat {
 	 * Stereo (2 channel) audio configuration
 	 */
 	public static final int CHANNEL_STEREO = 2;
-
-	/**
-	 * WAV format
-	 */
-	public static final int FORMAT_WAV = 0;
-	/**
-	 * AMR NB format
-	 */
-	public static final int FORMAT_AMR_NB = 1;
-	/**
-	 * AMR WB format
-	 */
-	public static final int FORMAT_AMR_WB = 2;
 }

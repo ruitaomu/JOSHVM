@@ -20,41 +20,20 @@
  */
 package org.joshvm.media;
 
-import java.io.IOException;
-
 /**
- * AudioManager provides access to volume control.
+ * MediaFormat contains a number of media configuration constants.
  */
-public class AudioManager {
+public class MediaFormat {
 	/**
-	 * Returns the maximum volume. (normally is 100)
+	 * WAV format
 	 */
-	public static int getMaxVolume() {
-		return getMaxVolume0();
-	}
-
+	public static final int FORMAT_WAV = 0;
 	/**
-	 * Returns the current volume between 0 and maximum volume.
-	 *
-	 * @see #getMaxVolume
+	 * AMR NB format
 	 */
-	public static int getCurrentVolume() {
-		return getCurrentVolume0();
-	}
-
+	public static final int FORMAT_AMR_NB = 1;
 	/**
-	 * Set the current volume with value between 0 and maximum volume.
-	 *
-	 * @param volume the new volume
-	 * @throws IOException if an I/O error occurs.
+	 * AMR WB format
 	 */
-	public static void setVolume(int volume) throws IOException {
-		setVolume0(volume);
-	}
-
-	private static native int getMaxVolume0();
-
-	private static native int getCurrentVolume0();
-
-	private static native void setVolume0(int volume);
+	public static final int FORMAT_AMR_WB = 2;
 }

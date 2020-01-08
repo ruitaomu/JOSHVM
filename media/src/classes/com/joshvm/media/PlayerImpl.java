@@ -28,6 +28,7 @@ import javax.microedition.io.Connector;
 import javax.microedition.io.file.FileConnection;
 
 import org.joshvm.media.AudioFormat;
+import org.joshvm.media.MediaFormat;
 import org.joshvm.media.MediaPlayerListener;
 
 public class PlayerImpl {
@@ -205,8 +206,8 @@ public class PlayerImpl {
 	}
 
 	public void setOutputFormat(int format) {
-		if (format != AudioFormat.FORMAT_WAV && format != AudioFormat.FORMAT_AMR_NB
-				&& format != AudioFormat.FORMAT_AMR_WB) {
+		if (format != MediaFormat.FORMAT_WAV && format != MediaFormat.FORMAT_AMR_NB
+				&& format != MediaFormat.FORMAT_AMR_WB) {
 			throw new IllegalArgumentException("Unsupported output format.");
 		}
 		setOutputFormat0(handle, format);

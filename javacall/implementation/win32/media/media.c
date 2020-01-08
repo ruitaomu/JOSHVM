@@ -119,14 +119,6 @@ javacall_result javacall_media_set_volume(int volume) {
     return JAVACALL_FAIL;
 }
 
-javacall_result javacall_media_add_volume() {
-    return JAVACALL_FAIL;
-}
-
-javacall_result javacall_media_sub_volume() {
-    return JAVACALL_FAIL;
-}
-
 javacall_result javacall_media_event_init() {
     return JAVACALL_FAIL;
 }

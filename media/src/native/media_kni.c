@@ -717,39 +717,7 @@ Java_org_joshvm_media_AudioManager_getCurrentVolume0()
 
 KNIEXPORT
 KNI_RETURNTYPE_VOID
-Java_org_joshvm_media_AudioManager_addVoice0()
-{
-#if ENABLE_PCSL
-    javacall_result result = JAVACALL_FAIL;
-
-    result = javacall_media_add_volume();
-    if (result != JAVACALL_OK) {
-        KNI_ThrowNew(KNIIOException, "failed to add volume.");
-    }
-#endif
-
-    KNI_ReturnVoid();
-}
-
-KNIEXPORT
-KNI_RETURNTYPE_VOID
-Java_org_joshvm_media_AudioManager_subVoice0()
-{
-#if ENABLE_PCSL
-    javacall_result result = JAVACALL_FAIL;
-
-    result = javacall_media_sub_volume();
-    if (result != JAVACALL_OK) {
-        KNI_ThrowNew(KNIIOException, "failed to sub volume.");
-    }
-#endif
-
-    KNI_ReturnVoid();
-}
-
-KNIEXPORT
-KNI_RETURNTYPE_VOID
-Java_org_joshvm_media_AudioManager_setVoice0()
+Java_org_joshvm_media_AudioManager_setVolume0()
 {
 #if ENABLE_PCSL
     int volume;
