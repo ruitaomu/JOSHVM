@@ -162,6 +162,9 @@ final class CommAppManager extends org.joshvm.ams.consoleams.ams implements AppM
 				case COMMAND_ERASE_REG:
 					msg = removeRegInfo();
 					break;
+				case COMMAND_SET_SYSTIME:
+					msg = setSysTime();
+					break;
 				default:
 			}
 		} catch (ConnectionResetException e) {
@@ -220,6 +223,11 @@ final class CommAppManager extends org.joshvm.ams.consoleams.ams implements AppM
 
 	private AMSMessage removeRegInfo() throws IOException, ConnectionResetException, WrongMessageFormatException {
 		return new AMSMessage("[RDELEREG]UNIQUEID=0000000000000000");
+	}
+
+	private AMSMessage setSysTime() throws IOException, ConnectionResetException, WrongMessageFormatException {
+		int time = getSysTimeUTCSecond();
+		return new AMSMessage("[SETSYSTM]UNIQUEID=0000000000000000,UTCSEC="+time);
 	}
 
 	public String toString() {

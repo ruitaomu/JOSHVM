@@ -32,6 +32,7 @@ public class AMSMessage {
 	public static final int MESSAGE_TYPE_ID_RESET_JVM = AppManager.APPMAN_COMMAND_RESET_JVM;
 	public static final int MESSAGE_TYPE_ID_DOWNLOAD_REG = AppManager.APPMAN_COMMAND_DOWNLOAD_REG;
 	public static final int MESSAGE_TYPE_ID_DELETE_REG = AppManager.APPMAN_COMMAND_DELETE_REG;
+	public static final int MESSAGE_TYPE_ID_SET_SYSTIME = AppManager.APPMAN_COMMAND_SET_SYSTIME;
 
 	public static final byte[] MESSAGE_TYPE_HEARTBEAT;
 	public static final byte[] MESSAGE_TYPE_REPORT_REGISTER;
@@ -44,6 +45,7 @@ public class AMSMessage {
 	public static final byte[] MESSAGE_TYPE_RESET_JVM;
 	public static final byte[] MESSAGE_TYPE_DOWNLOAD_REG;
 	public static final byte[] MESSAGE_TYPE_DELETE_REG;
+	public static final byte[] MESSAGE_TYPE_SET_SYSTIME;
 	public static final byte[] LINE_END;
 	public static final byte[] SEPARATOR;
 
@@ -64,6 +66,7 @@ public class AMSMessage {
 		MESSAGE_TYPE_RESET_JVM =       new String("[RESETJVM]").getBytes();
 		MESSAGE_TYPE_DOWNLOAD_REG =    new String("[DOWNLREG]").getBytes();
 		MESSAGE_TYPE_DELETE_REG =      new String("[RDELEREG]").getBytes();
+		MESSAGE_TYPE_SET_SYSTIME =     new String("[SETSYSTM]").getBytes();
 		LINE_END = new String("\n").getBytes();
 		SEPARATOR = new String(",").getBytes();
 	}
@@ -113,6 +116,9 @@ public class AMSMessage {
 		} else if (type.equals("[RDELEREG]")) {
 			_typeID = MESSAGE_TYPE_ID_DELETE_REG;
 			_type = MESSAGE_TYPE_DELETE_REG;
+		} else if (type.equals("[SETSYSTM]")) {
+			_typeID = MESSAGE_TYPE_ID_SET_SYSTIME;
+			_type = MESSAGE_TYPE_SET_SYSTIME;
 		} else {
 			throw new WrongMessageFormatException();
 		}

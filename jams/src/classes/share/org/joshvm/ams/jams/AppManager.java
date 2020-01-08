@@ -40,6 +40,7 @@ public interface AppManager {
 	static final public int APPMAN_COMMAND_DELETE_APP = 35;
 	static final public int APPMAN_COMMAND_RUNNING_APP = 36;
 	static final public int APPMAN_COMMAND_RESET_JVM = 37;
+	static final public int APPMAN_COMMAND_SET_SYSTIME = 40;
 	static final public int APPMAN_COMMAND_DOWNLOAD_REG = 50;
 	static final public int APPMAN_COMMAND_DELETE_REG = 51;
 	/*REPORT CODE*/

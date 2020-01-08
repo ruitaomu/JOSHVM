@@ -36,6 +36,11 @@ public class ams {
 	static final public int REQUEST_RUN_APP_MAINCLASS = 5;
 	static final public int REQUEST_START_DOWNLOAD = 6;
 	static final public int REQUEST_DOWNLOAD_APP_NEXT_BLOCK = 7;
+
+
+
+	static final public int REQUEST_SET_SYSTIME = 11;
+	static final public int REQUEST_NEED_SYSTIME = 12;
 	/*COMMAND CODE*/
 	static final public int COMMAND_DOWNLOAD_JAR = 30;
 	static final public int 	COMMAND_RUN_APP = 31;
@@ -43,6 +48,11 @@ public class ams {
 	static final public int 	COMMAND_STOP_APP = 33;
 	static final public int COMMAND_ERASE_APP = 35;
 	static final public int COMMAND_NO_MORE_COMMAND = 36;
+
+
+	
+	static final public int COMMAND_SET_SYSTIME = 40;
+
 	static final public int COMMAND_DOWNLOAD_REG = 50;
 	static final public int COMMAND_ERASE_REG = 51;
 	/*REPORT CODE*/
@@ -132,6 +142,11 @@ public class ams {
 		return console.receiveInt();
 	}
 
+	protected int getSysTimeUTCSecond() throws IOException, ConnectionResetException {
+		console.sendRequest(REQUEST_SET_SYSTIME);
+		return console.receiveInt();
+	}
+
 	protected int waitForCommand() throws IOException, ConnectionResetException {
 		console.sendRequest(REQUEST_WAIT_COMMAND);
 		Logging.report(Logging.INFORMATION, LogChannels.LC_AMS, "Waiting for command");
@@ -187,6 +202,11 @@ public class ams {
 			console.sendRequest(REQUEST_SYNC);
 			code = console.receiveInt();
 		} while (code != SYNC_CODE);
+
+		if (System.currentTimeMillis() < 630720000000) {
+			//Tell Josh Console the device need to set SYSTIME, but not require response, in case JOSH Console doesn't support this request
+			console.sendRequest(REQUEST_NEED_SYSTIME);
+		}
 	}
 
 	protected void connect() throws IOException {

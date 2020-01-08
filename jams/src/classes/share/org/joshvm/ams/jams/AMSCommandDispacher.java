@@ -100,6 +100,12 @@ public class AMSCommandDispacher implements Runnable {
 							cmdListener.commandRemoveReg(server_cmd.uniqueID());
 						}
 						break;
+					case AMSMessage.MESSAGE_TYPE_ID_SET_SYSTIME:
+						if (appmanager.isConnected()) {
+							int newTime = parseAsInt(server_cmd.body(), "UTCSEC=");
+							cmdListener.commandSetSysTime(server_cmd.uniqueID(), (long)newTime*1000);
+						}
+						break;
 					default:
 						Logging.report(Logging.WARNING, LogChannels.LC_AMS, "AMS received unknown message: "+server_cmd.type());
 					}

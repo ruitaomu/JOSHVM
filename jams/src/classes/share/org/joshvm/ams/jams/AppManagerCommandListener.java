@@ -33,4 +33,5 @@ public interface AppManagerCommandListener {
 	public void commandResetJVM(String uniqueID);
 	public void commandInstallReg(boolean forceInstall, String uniqueID, String installSource, int length);
 	public void commandRemoveReg(String uniqueID);
+	public void commandSetSysTime(String uniqueID, long milliSecondsToSet);
 }

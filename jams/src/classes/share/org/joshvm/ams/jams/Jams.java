@@ -341,6 +341,11 @@ public final class Jams implements AppManagerCommandListener {
 		platformControl.reset();
 	}
 
+	synchronized public void commandSetSysTime(String uniqueID, long milliSecondsToSet) {
+		Logging.report(Logging.INFORMATION, LogChannels.LC_AMS, "System time has been adjusted");
+		platformControl.setCurrentTimeMillis(milliSecondsToSet);
+	}
+
 	private static void startApp(final String uniqueID, final String appName, final String mainClass) {
 		if (runningIsolate != null) {
 			Logging.report(Logging.ERROR, LogChannels.LC_AMS, "[startApp]There's another application running. Failed to start: "+appName);
