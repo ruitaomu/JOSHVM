@@ -203,7 +203,7 @@ public class ams {
 			code = console.receiveInt();
 		} while (code != SYNC_CODE);
 
-		if (System.currentTimeMillis() < 630720000000) {
+		if (System.currentTimeMillis() < 630720000000L) {
 			//Tell Josh Console the device need to set SYSTIME, but not require response, in case JOSH Console doesn't support this request
 			console.sendRequest(REQUEST_NEED_SYSTIME);
 		}
