@@ -89,7 +89,7 @@ then
 	echo WS_ROOT not specified using ${WS_ROOT}
 fi
 
-BUILD_ROOT_DIR=`cygpath -u $WS_ROOT`
+BUILD_ROOT_DIR=${WS_ROOT}
 JAVADOC_OUTPUT_DIR=${BUILD_ROOT_DIR}/doc/output
 
 if [ -z "${BUILD_JAVACALL_IMPL}" -a -z "${BUILD_PCSL}" -a -z "${BUILD_CLDC}" -a -z "${BUILD_MIDP}" ]
@@ -149,7 +149,7 @@ then
 			exit 1
 	fi
 fi
-
+DEFAULT_POOL_SIZE=1024*1280
 if [ "${BUILD_PCSL}" = "true" ]
 then
 	BUILDMODULE=${PCSL_DIR}
@@ -164,6 +164,7 @@ then
 			PCSL_PLATFORM=javacall_i386_gcc \
 			PCSL_OUTPUT_DIR=${PCSL_OUTPUT_DIR} \
 			ENABLE_THUMB=${ENABLE_THUMB} \
+			DEFAULT_POOL_SIZE=${DEFAULT_POOL_SIZE} \
 			${DEBUG_OPTION}
 	fi
 	if [ $? != 0 ];then
