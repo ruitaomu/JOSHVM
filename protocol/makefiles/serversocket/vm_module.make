@@ -17,23 +17,31 @@
 # Please visit www.joshvm.org if you need additional information or
 # have any questions.
 
-include $(EXTRA_PROTOCOLS_DIR)/makefiles/modules.config 
-
-include $(EXTRA_PROTOCOLS_DIR)/makefiles/socket/classpath.make
-
-ifeq ($(LOCAL_CONFIG_USE_HTTP), true)
-include $(EXTRA_PROTOCOLS_DIR)/makefiles/http/classpath.make
+ifeq ($(IsTarget),true)
+platform = javacall
+else
+platform = stub
 endif
 
-ifeq ($(ENABLE_SECURITY), true)
-ifeq ($(LOCAL_CONFIG_USE_HTTP), true)
-include $(EXTRA_PROTOCOLS_DIR)/makefiles/https/classpath.make
-endif
-include $(EXTRA_PROTOCOLS_DIR)/makefiles/ssl/classpath.make
-endif
+PROTOCOL_SRC_DIR = $(EXTRA_PROTOCOLS_DIR)/serversocket/natives/$(platform)
 
-ifeq ($(LOCAL_CONFIG_USE_SOCKETCAN), true)
-include $(EXTRA_PROTOCOLS_DIR)/makefiles/socket_can/classpath.make
-endif
+ROMGEN_CFG_FILES += $(EXTRA_PROTOCOLS_DIR)/makefiles/serversocket/rom.config
 
-include $(EXTRA_PROTOCOLS_DIR)/makefiles/serversocket/classpath.make
+OPT_MODULE_EXTRAPROTO_CFLAGS = -DENABLE_SERVER_SOCKET
+
+ifeq ($(compiler), visCPP)
+PROTOCOL_Obj_Files += \
+	serverSocketProtocol.obj 
+	
+serverSocketProtocol.obj: $(PROTOCOL_SRC_DIR)/serverSocketProtocol.c
+	$(BUILD_C_TARGET_NO_PCH)
+	
+else
+
+PROTOCOL_Obj_Files += \
+	serverSocketProtocol.o
+
+serverSocketProtocol.o: $(PROTOCOL_SRC_DIR)/serverSocketProtocol.c
+	$(BUILD_C_TARGET)
+	
+endif

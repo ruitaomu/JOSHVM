@@ -16,24 +16,6 @@
 # 
 # Please visit www.joshvm.org if you need additional information or
 # have any questions.
-
-include $(EXTRA_PROTOCOLS_DIR)/makefiles/modules.config 
-
-include $(EXTRA_PROTOCOLS_DIR)/makefiles/socket/classpath.make
-
-ifeq ($(LOCAL_CONFIG_USE_HTTP), true)
-include $(EXTRA_PROTOCOLS_DIR)/makefiles/http/classpath.make
-endif
-
-ifeq ($(ENABLE_SECURITY), true)
-ifeq ($(LOCAL_CONFIG_USE_HTTP), true)
-include $(EXTRA_PROTOCOLS_DIR)/makefiles/https/classpath.make
-endif
-include $(EXTRA_PROTOCOLS_DIR)/makefiles/ssl/classpath.make
-endif
-
-ifeq ($(LOCAL_CONFIG_USE_SOCKETCAN), true)
-include $(EXTRA_PROTOCOLS_DIR)/makefiles/socket_can/classpath.make
-endif
-
-include $(EXTRA_PROTOCOLS_DIR)/makefiles/serversocket/classpath.make
+JSR_JAVA_FILES_DIR += $(EXTRA_PROTOCOLS_DIR)/serversocket/classes
+  
+DOC_SOURCE_PATH := $(DOC_SOURCE_PATH)$(BUILD_ROOT_DIR)/protocol/serversocket/classes$(DOC_PATH_SEP)

@@ -29,6 +29,7 @@ package com.sun.cldc.io.j2me.socket;
 import java.io.*;
 import javax.microedition.io.*;
 import com.sun.cldc.io.*;
+import com.sun.cldc.io.j2me.socket.ServerSocket;
 
 /**
  * Connection to the J2ME socket API.
@@ -86,6 +87,9 @@ public class Protocol implements ConnectionBaseInterface, SocketConnection {
      */
     public Connection openPrim(String name, int mode, boolean timeouts)
             throws IOException {
+            
+        ServerSocket serverSocket;
+
         if (!name.startsWith("//")) {
             throw new IOException(
 /* #ifdef VERBOSE_EXCEPTIONS */
@@ -112,23 +116,37 @@ public class Protocol implements ConnectionBaseInterface, SocketConnection {
 /* #endif */
             );
         }
-        // cstring is always NUL terminated (note the extra byte allocated).
-        // This avoids awkward char array manipulation in C code.
-        byte cstring[] = new byte[hostname.length() + 1];
-        for (int n=0; n<hostname.length(); n++) {
-            cstring[n] = (byte)(hostname.charAt(n));
+
+		if (hostname != null && hostname.length() > 0) {
+            // cstring is always NUL terminated (note the extra byte allocated).
+            // This avoids awkward char array manipulation in C code.
+            byte cstring[] = new byte[hostname.length() + 1];
+            for (int n=0; n<hostname.length(); n++) {
+                cstring[n] = (byte)(hostname.charAt(n));
+            }
+    
+    		int in_addr = getHostByName0(cstring);
+    		
+            this.handle = open0(in_addr, port, mode);
+    
+    		opens++;
+            copen = true;
+            this.mode = mode;
+    		m_port = port;
+    		m_host = hostname;
+            return this;
+		}
+
+		// We allow "socket://:nnnn" to mean an inbound TCP server socket.
+        try {
+            serverSocket = (ServerSocket)Class.forName(
+                  "com.sun.cldc.io.j2me.serversocket.Socket").newInstance();
+        } catch (Exception e) {
+            throw new ConnectionNotFoundException("Connection not supported");
         }
-
-		int in_addr = getHostByName0(cstring);
-		
-        this.handle = open0(in_addr, port, mode);
-
-		opens++;
-        copen = true;
-        this.mode = mode;
-		m_port = port;
-		m_host = hostname;
-        return this;
+            
+        serverSocket.open(port);
+        return (Connection)serverSocket;
      }
 
     /**

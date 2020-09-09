@@ -327,6 +327,7 @@ endif
 
 ifeq ($(ENABLE_EXTRA_PROTOCOLS), true)
 Obj_Files           +=         $(PROTOCOL_Obj_Files)
+ENABLE_CFLAGS       +=         $(OPT_MODULE_EXTRAPROTO_CFLAGS)
 endif
 
 ifeq ($(ENABLE_DIRECTUI), true)
