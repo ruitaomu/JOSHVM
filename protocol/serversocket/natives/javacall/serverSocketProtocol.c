@@ -86,6 +86,9 @@ Java_com_sun_cldc_io_j2me_serversocket_Socket_open0(void) {
     int port;
     void *pcslHandle = INVALID_HANDLE;
     int status = PCSL_NET_INVALID;
+	SNIReentryData* info;
+	void* context = NULL;
+	int res;
 	jfieldID id;
 
     KNI_StartHandles(2);
@@ -99,20 +102,70 @@ Java_com_sun_cldc_io_j2me_serversocket_Socket_open0(void) {
 	id = KNI_GetFieldID(thisClass, "nativeHandle", "I");
 	KNI_SetIntField(thisObject, id, (jint)INVALID_HANDLE);
 
-    status = pcsl_serversocket_open(
-        port, &pcslHandle);
+	
+	int hasInited = 0;
+	
+	info = (SNIReentryData*)SNI_GetReentryData(NULL);
+	if (info == NULL) {
+		if (!hasInited) {
+			res = pcsl_network_init_start(NULL);
+			if (res == PCSL_NET_WOULDBLOCK) {
+				SNIEVT_wait(NETWORK_UP_SIGNAL, (int)0, NULL);
+			} else if (res == PCSL_NET_SUCCESS) {
+				hasInited = 1;
+			} else {
+				KNI_ThrowNew(KNIIOException, "Initialize network error!\n");
+			}
+		}
+		if (hasInited) {
+			SNI_BEGIN_RAW_POINTERS;
+			status = pcsl_serversocket_open(port, &pcslHandle);
+			SNI_END_RAW_POINTERS;
 
-    if (status == PCSL_NET_SUCCESS) {
-        KNI_SetIntField(thisObject, id, (jint)pcslHandle);
-        REPORT_INFO2(LC_PROTOCOL,
+			if (status == PCSL_NET_SUCCESS) {
+				KNI_SetIntField(thisObject, id, (jint)pcslHandle);
+		        REPORT_INFO2(LC_PROTOCOL,
                      "serversocket::open port = %d handle = %d\n",
                      port, (jint)pcslHandle);
+			} else if (status == PCSL_NET_IOERROR) {
+				KNI_ThrowNew(KNIIOException, "IOError in serversocket::open");
+			} else {
+				KNI_ThrowNew(KNIIOException, "Unknown error during serversocket::open");
+			}
+		}
+	} else {
+		SNIsignalType type = info->waitingFor;
+		if (type == NETWORK_UP_SIGNAL) {
+			if (info->status == 0) {
+				res = pcsl_network_init_finish();
+			} else {
+				res = PCSL_NET_IOERROR;
+			}
+			if (res == PCSL_NET_WOULDBLOCK) {
+				SNIEVT_wait(NETWORK_UP_SIGNAL, (int)0, NULL);
+			} else if (res == PCSL_NET_SUCCESS) {
+				
+				{
+					SNI_BEGIN_RAW_POINTERS;
+					status = pcsl_serversocket_open(port, &pcslHandle);
+					SNI_END_RAW_POINTERS;
 
-    } else if (status == PCSL_NET_IOERROR) {
-        KNI_ThrowNew(KNIIOException, "IOError in serversocket::open");
-    } else {
-        KNI_ThrowNew(KNIIOException, "Unknown error during serversocket::open");
-    }
+					if (status == PCSL_NET_SUCCESS) {
+						KNI_SetIntField(thisObject, id, (jint)pcslHandle);
+		        		REPORT_INFO2(LC_PROTOCOL,
+                   		  "serversocket::open port = %d handle = %d\n",
+                     		port, (jint)pcslHandle);
+					} else if (status == PCSL_NET_IOERROR) {
+						KNI_ThrowNew(KNIIOException, "IOError in serversocket::open");
+					} else {
+						KNI_ThrowNew(KNIIOException, "Unknown error during serversocket::open");
+					}
+				}
+			} else {
+				KNI_ThrowNew(KNIIOException, "Initialize network error!\n");
+			}
+		}
+	} //End of SNI reentry process
 
     KNI_EndHandles();
     KNI_ReturnVoid();
