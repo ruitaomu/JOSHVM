@@ -164,6 +164,7 @@ then
 	fi
 fi
 
+DEFAULT_POOL_SIZE=1024*1280
 if [ "${BUILD_PCSL}" = "true" ]
 then
 	BUILDMODULE=${PCSL_DIR}
@@ -178,6 +179,7 @@ then
 			PCSL_PLATFORM=javacall_i386_vc \
 			PCSL_OUTPUT_DIR=${PCSL_OUTPUT_DIR} \
 			ENABLE_THUMB=${ENABLE_THUMB} \
+            DEFAULT_POOL_SIZE=${DEFAULT_POOL_SIZE} \
 			${DEBUG_OPTION}
 	fi
 	if [ $? != 0 ];then
