@@ -30,6 +30,8 @@ final class CommAppManager extends org.joshvm.ams.consoleams.ams implements AppM
 	private boolean appStarted;
 	private String name;
 
+	private static final String UUID_RESERVED_BACKGROUND_RUNNING = "RESERVED_BACKRUN";
+
 	public CommAppManager() {
 		super();
 	}
@@ -44,7 +46,7 @@ final class CommAppManager extends org.joshvm.ams.consoleams.ams implements AppM
 	}
 
 	public void connect() throws IOException {
-		System.out.println("========CommAppManager.connect");
+		Logging.report(Logging.INFORMATION, LogChannels.LC_AMS, "========CommAppManager.connect");
 		stop = false;
 		super.connect();		
 		startCommandListener();
@@ -62,7 +64,7 @@ final class CommAppManager extends org.joshvm.ams.consoleams.ams implements AppM
 	public synchronized void disconnect() throws IOException {
 		notifyAll();
 
-		System.out.println("========CommAppManager.disconnect: stop="+stop);
+		Logging.report(Logging.INFORMATION, LogChannels.LC_AMS, "========CommAppManager.disconnect: stop="+stop);
 
 		if (stop == false) {
 			Logging.report(Logging.INFORMATION, LogChannels.LC_AMS, "CommAppManager disconnecting...");
@@ -98,6 +100,16 @@ final class CommAppManager extends org.joshvm.ams.consoleams.ams implements AppM
 	}
 
 	public void response(String uniqueid, int code, String body) throws IOException {
+		if (!connected || (uniqueid == null)) {
+			//if uniqueid is null, that's autostarted app, not to response anything
+			return;
+		}
+
+		if (uniqueid.equals(UUID_RESERVED_BACKGROUND_RUNNING) && (code == AppManager.APPMAN_RESPCODE_APPFINISH)) {
+			//hint: background running app will not response APPMAN_RESPCODE_APPFINISH report message
+			return;
+		}
+		
 		switch (code) {
 			case AppManager.APPMAN_RESPCODE_INSTALLOK:
 				console.sendReport(REPORT_FINISH_DOWNLOAD);
@@ -112,19 +124,36 @@ final class CommAppManager extends org.joshvm.ams.consoleams.ams implements AppM
 			case AppManager.APPMAN_RESPCODE_DELETEOK:
 				console.sendReport(REPORT_FINISH_ERASEAPP);
 				break;
+			case AppManager.APPMAN_RESPCODE_RUNNINGAPPLIST:
+				System.out.println(body);
+				console.sendReport(REPORT_FINISH_LISTRUNNINGAPP);
 			case AppManager.APPMAN_RESPCODE_APPFINISH:				
 				console.sendReport(REPORT_FINISH_RUNAPP);
 				appStarted = false;
-				try {
 					synchronized (this) {
 						notifyAll();
 					}
-				} catch (Exception e) {
-					e.printStackTrace();
-				}
 				break;
 			case AppManager.APPMAN_RESPCODE_APPSTARTOK:
+				console.sendReport(REPORT_START_RUNAPP);
 				appStarted = true;
+				break;
+			case AppManager.APPMAN_RESPCODE_APPSTARTERROR:
+				console.sendReport(REPORT_ERROR_RUNAPP);
+				appStarted = false;
+				synchronized (this) {
+					notifyAll();
+				}
+				break;
+			case AppManager.APPMAN_RESPCODE_APPNOTEXIST:
+				console.sendReport(REPORT_NONEXIST_RUNAPP);
+				appStarted = false;
+				synchronized (this) {
+					notifyAll();
+				}
+				break;
+			case AppManager.APPMAN_RESPCODE_RESETJVM:
+				console.sendReport(REPORT_JVM_RESET);
 				break;
 			default:
 				console.sendReport(REPORT_GENERAL_FAIL);
@@ -141,7 +170,10 @@ final class CommAppManager extends org.joshvm.ams.consoleams.ams implements AppM
 					msg = downloadInfo();
 					break;
 				case COMMAND_RUN_APP:
-					msg = runningInfo();
+					msg = runningInfo(false);
+					break;
+				case COMMAND_RUN_BG_APP:
+					msg = runningInfo(true);
 					break;
 				case COMMAND_LIST_APP:
 					msg = appListInfo();
@@ -149,7 +181,14 @@ final class CommAppManager extends org.joshvm.ams.consoleams.ams implements AppM
 				case COMMAND_ERASE_APP:
 					msg = removeAppInfo();
 					break;
+				case COMMAND_LIST_RUNNING_APP:
+					msg = listRunningApp();
+					break;
 				case COMMAND_STOP_APP:
+					msg = stopApp();
+					break;
+				case COMMAND_RESET_JVM:
+					msg = resetJVM();
 					break;
 				case COMMAND_NO_MORE_COMMAND:
 					synchronized (this) {
@@ -192,9 +231,11 @@ final class CommAppManager extends org.joshvm.ams.consoleams.ams implements AppM
 	private AMSMessage downloadInfo() throws IOException, ConnectionResetException, WrongMessageFormatException {
 		String appJarFile = getDownloadAppName();
 		int filebytes = getDownloadAppLength();
+		String autorun = getAutoRunFlag();
+		String mainclass = getDownloadAppMainClass();		
 
 		return new AMSMessage("[DOWNLAPP]UNIQUEID=0000000000000000,APPNAME="+appJarFile+
-			",APPURL=comm:COM0,AUTOSTART=0,STARTNOW=0,MAINCLASS=dummy,APPLEN="+filebytes);
+			",APPURL=comm:COM0,AUTOSTART="+autorun+",STARTNOW=0,MAINCLASS="+mainclass+",APPLEN="+filebytes);
 	}
 
 	private AMSMessage appListInfo() throws IOException, ConnectionResetException, WrongMessageFormatException {
@@ -207,11 +248,18 @@ final class CommAppManager extends org.joshvm.ams.consoleams.ams implements AppM
 		return new AMSMessage("[RDELEAPP]UNIQUEID=0000000000000000,APPNAME="+appJarFile);
 	}
 
-	private AMSMessage runningInfo() throws IOException, ConnectionResetException, WrongMessageFormatException {
+	private AMSMessage runningInfo(boolean background) throws IOException, ConnectionResetException, WrongMessageFormatException {
 		String appJarFile = getRunAppJarfile();
 		String appName = getRunAppMainClass();
+		String uuid;
 
-		return new AMSMessage("[STARTAPP]UNIQUEID=0000000000000000,APPNAME="+appJarFile+
+		if (background) {
+			uuid = UUID_RESERVED_BACKGROUND_RUNNING;
+		} else {
+			uuid = "0000000000000000";
+		}
+
+		return new AMSMessage("[STARTAPP]UNIQUEID="+uuid+",APPNAME="+appJarFile+
 			", MAINCLASS="+appName);
 	}
 
@@ -228,6 +276,19 @@ final class CommAppManager extends org.joshvm.ams.consoleams.ams implements AppM
 	private AMSMessage setSysTime() throws IOException, ConnectionResetException, WrongMessageFormatException {
 		int time = getSysTimeUTCSecond();
 		return new AMSMessage("[SETSYSTM]UNIQUEID=0000000000000000,UTCSEC="+time);
+	}
+
+	private AMSMessage listRunningApp() throws IOException, ConnectionResetException, WrongMessageFormatException {
+		return new AMSMessage("[RUNNGAPP]UNIQUEID=0000000000000000");
+	}
+
+	private AMSMessage stopApp() throws IOException, ConnectionResetException, WrongMessageFormatException {
+		String appJarFile = getStoppingAppName();
+		return new AMSMessage("[RSTOPAPP]UNIQUEID=0000000000000000,APPNAME="+appJarFile);
+	}
+
+	private AMSMessage resetJVM() throws IOException, ConnectionResetException, WrongMessageFormatException {
+		return new AMSMessage("[RESETJVM]UNIQUEID=0000000000000000");
 	}
 
 	public String toString() {

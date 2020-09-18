@@ -31,7 +31,7 @@ public class ConsoleConnection {
 	 * Version number is (byte)(0xef - MAGIC[3])
 	 *
 	 **/
-	private static final byte[] MAGIC = {(byte)0xfe, (byte)0xaa, (byte)0xbc, (byte)0xee};
+	private static final byte[] MAGIC = {(byte)0xfe, (byte)0xaa, (byte)0xbc, (byte)0xed};
 	OutputStream os;
 	InputStream is;
 
