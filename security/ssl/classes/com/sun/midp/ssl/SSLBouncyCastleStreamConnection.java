@@ -31,16 +31,31 @@ import java.util.Vector;
 import javax.microedition.io.Connector;
 import javax.microedition.io.SecurityInfo;
 import javax.microedition.io.StreamConnection;
-
 import javax.microedition.pki.Certificate;
 
 import com.sun.midp.pki.*;
+
+import org.joshvm.crypto.keystore.KeyStore;
 
 import org.bouncycastle.crypto.tls.DefaultTlsClient;
 import org.bouncycastle.crypto.tls.TlsAuthentication;
 import org.bouncycastle.crypto.tls.TlsCredentials;
 import org.bouncycastle.crypto.tls.TlsClientProtocol;
 import org.bouncycastle.crypto.tls.CertificateRequest;
+import org.bouncycastle.crypto.tls.TlsContext;
+import org.bouncycastle.crypto.tls.DefaultTlsSignerCredentials;
+import org.bouncycastle.crypto.tls.ProtocolVersion;
+import org.bouncycastle.crypto.tls.SignatureAndHashAlgorithm;
+import org.bouncycastle.crypto.tls.CipherSuite;
+import org.bouncycastle.crypto.tls.SignatureAlgorithm;
+import org.bouncycastle.crypto.tls.HashAlgorithm;
+
+
+
+import org.bouncycastle.asn1.pkcs.RSAPrivateKey;
+import org.bouncycastle.asn1.ASN1Sequence;
+import org.bouncycastle.crypto.params.AsymmetricKeyParameter;
+import org.bouncycastle.util.encoders.Base64;
 
 public class SSLBouncyCastleStreamConnection implements StreamConnection {
     /** Indicates that a is ready to be opened. */
@@ -77,6 +92,10 @@ public class SSLBouncyCastleStreamConnection implements StreamConnection {
 	private org.bouncycastle.crypto.tls.Certificate certificate = null;
     private TlsClientProtocol tlsproto = null;
 	private CertStore certStore;
+    private int cipherSuiteCode = 0;
+    
+    protected String protoVersion = null;
+    protected String protoName = null;
 	
     /**
      * Establish and SSL session over a reliable stream.
@@ -117,6 +136,38 @@ public class SSLBouncyCastleStreamConnection implements StreamConnection {
         try {
             tlsproto = new TlsClientProtocol(in, out, new com.joshvm.java.security.SecureRandom());
 			DefaultTlsClient client = new DefaultTlsClient() {
+                public void notifyServerVersion(ProtocolVersion serverVersion)
+                    throws IOException
+                {
+                    super.notifyServerVersion(serverVersion);
+                    if (serverVersion != null) {
+                        serverVersion = serverVersion.getEquivalentTLSVersion();
+                    }
+                    
+                    if (ProtocolVersion.SSLv3.equals(serverVersion)) {
+                        protoVersion = "3.0";
+                        protoName = "SSL";
+                    } else if (ProtocolVersion.TLSv10.equals(serverVersion)) {
+                        protoVersion = "3.1";
+                        protoName = "TLS";
+                    } else if (ProtocolVersion.TLSv11.equals(serverVersion)) {
+                        protoVersion = "3.2";
+                        protoName = "TLSv1.1";
+                    } else if (ProtocolVersion.TLSv12.equals(serverVersion)) {
+                        protoVersion = "3.3";
+                        protoName = "TLSv1.2";
+                    } else {
+                        throw new IOException("Unknown SSL/TLS version");
+                    }
+                }
+
+                public void notifySelectedCipherSuite(int selectedCipherSuite)
+                {
+                    super.notifySelectedCipherSuite(selectedCipherSuite);
+
+                    cipherSuiteCode = selectedCipherSuite;
+                }
+                
                 public TlsAuthentication getAuthentication() throws IOException {
                     TlsAuthentication auth = new TlsAuthentication() {
                         public void notifyServerCertificate(
@@ -128,8 +179,7 @@ public class SSLBouncyCastleStreamConnection implements StreamConnection {
 
                         public TlsCredentials getClientCredentials(
                                 CertificateRequest certificateRequest) throws IOException {
-                            // TODO Auto-generated method stub
-                            return null;
+                            return tlsSignerCredentials(context, new SignatureAndHashAlgorithm(HashAlgorithm.sha256, SignatureAlgorithm.rsa));
                         }
                     };
                     return auth;
@@ -139,7 +189,15 @@ public class SSLBouncyCastleStreamConnection implements StreamConnection {
 			if (certificate != null) {
             	org.bouncycastle.asn1.x509.Certificate[] certs = certificate.getCertificateList();
 				serverCert = new BouncyCastleX509Certificate(validateCertChain(certs));
-				cipherSuite = "TLS_RSA_WITH_AES_128_CBC_SHA"; //Hard coded for now???
+                if (cipherSuiteCode == CipherSuite.TLS_RSA_WITH_AES_128_CBC_SHA) {
+    				cipherSuite = "TLS_RSA_WITH_AES_128_CBC_SHA"; //Hard coded for now???
+                } else if (cipherSuiteCode == CipherSuite.TLS_RSA_WITH_AES_128_CBC_SHA256) {
+                    cipherSuite = "TLS_RSA_WITH_AES_128_CBC_SHA256"; //Hard coded for now???
+                } else {
+                    //See DefaultTlsClient.getCipherSuites()
+                    throw new IOException("Unsupported CipherSuite:"+cipherSuiteCode+
+                        ". Client currently only support TLS_RSA_WITH_AES_128_CBC_SHA or TLS_RSA_WITH_AES_128_CBC_SHA256");
+                }
 			} else {
 				throw new IOException("No server certificate found!");
 			}
@@ -152,6 +210,20 @@ public class SSLBouncyCastleStreamConnection implements StreamConnection {
         }
 
         copen = true;
+    }
+
+
+    
+    private DefaultTlsSignerCredentials tlsSignerCredentials(TlsContext tlsContext, SignatureAndHashAlgorithm algorithm) {
+        try {            
+            return new DefaultTlsSignerCredentials(tlsContext,
+                KeyStore.getSelectedPrivateKeyStore().getCertificate(), 
+                KeyStore.getSelectedPrivateKeyStore().getPrivateKey(),
+                algorithm);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
     }
 
 	private X509Certificate validateCertChain(org.bouncycastle.asn1.x509.Certificate[] x509CertificateList) throws IOException {
@@ -229,7 +301,7 @@ public class SSLBouncyCastleStreamConnection implements StreamConnection {
     public DataOutputStream openDataOutputStream() throws IOException {
           return (new DataOutputStream(openOutputStream()));
     }
-            
+
     /**
      * Closes the SSL connection. The underlying TCP socket, over which
      * SSL is layered, is also closed unless the latter was opened by
@@ -305,7 +377,6 @@ public class SSLBouncyCastleStreamConnection implements StreamConnection {
     }
 }
 
-
 /**
  * This class implements methods
  * to access information about a SSL secure network connection.
@@ -332,7 +403,7 @@ class SSLBouncyCastleSecurityInfo implements SecurityInfo {
      * @return the <CODE>Certificate</CODE> used to establish the
      * secure connection with the server
      */
-    public Certificate getServerCertificate() {
+    public javax.microedition.pki.Certificate getServerCertificate() {
         return parent.getServerCertificate();
     }
 
@@ -359,7 +430,7 @@ class SSLBouncyCastleSecurityInfo implements SecurityInfo {
      * @return a String containing the version of the protocol
      */
     public String getProtocolVersion() {
-        return "3.3";
+        return parent.protoVersion;
     }
 
     /**
@@ -372,7 +443,7 @@ class SSLBouncyCastleSecurityInfo implements SecurityInfo {
      * If WTLS (WAP 199) is used for the connection the return value is "WTLS".
      */
     public String getProtocolName() {
-        return "TLSv1.2";
+        return parent.protoName;
     }
 
     /**
@@ -389,4 +460,5 @@ class SSLBouncyCastleSecurityInfo implements SecurityInfo {
         return parent.getCipherSuite();
     }
 }
+
 
