@@ -354,7 +354,6 @@ public class TlsClientProtocol
 
                     if (clientCreds == null)
                     {
-                        System.out.println("No client Cert");
                         this.keyExchange.skipClientCredentials();
 
                         /*
@@ -367,7 +366,6 @@ public class TlsClientProtocol
                     }
                     else
                     {
-                        System.out.println("Have client cert");
                         this.keyExchange.processClientCredentials(clientCreds);
 
                         sendCertificateMessage(clientCreds.getCertificate());
