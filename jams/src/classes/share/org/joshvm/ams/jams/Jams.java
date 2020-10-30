@@ -28,6 +28,7 @@ import org.joshvm.system.PlatformControl;
 import com.sun.cldc.io.j2me.file.Protocol;
 import com.sun.cldc.isolate.*;
 import com.sun.midp.log.*;
+import java.util.*;
 
 public final class Jams implements AppManagerCommandListener {
 	private static final String APPMANAGER_SERVER_ADDRESS = "appman.joshvm.com";
@@ -37,16 +38,13 @@ public final class Jams implements AppManagerCommandListener {
 	private static final int APPMANAGER_TYPE_COMM = 1;
 	private static final int APPMANAGER_TYPE_NETWORK = 2;
 	private static final boolean ifConnectAtStart = false;
-
 	private static final int REGFILE_MAX_SIZE = 1024;
-
-	private static Isolate runningIsolate;
+	private static Hashtable runningIsolates;
 	private static String stoppingUniqueID;
-	
+
 	private static AppManager appman = null;
 	private PlatformControl platformControl;
-
-	private static Object startSyncObj = new Object();
+	private static boolean autostart_processed = false;
 
     /**
      * Inner class to request security token from SecurityInitializer.
@@ -58,14 +56,14 @@ public final class Jams implements AppManagerCommandListener {
     /** This class has a different security domain than the MIDlet suite */
     private static SecurityToken securityToken =
         SecurityInitializer.requestToken(new SecurityTrusted());
-	
+
 	private Jams (int type) throws UnsupportedAppManagerException {
 		try {
 			if (type == APPMANAGER_TYPE_COMM) {
 				appman = (AppManager)Class.forName("org.joshvm.ams.jams.CommAppManager").newInstance();
 				appman.init(APPMANAGER_COMM_PORT);
 			}
-			
+
 			if (type == APPMANAGER_TYPE_NETWORK) {
 				appman = (AppManager)Class.forName("org.joshvm.ams.jams.NetworkAppManager").newInstance();
 				appman.init(APPMANAGER_SERVER_ADDRESS+":"+APPMANAGER_SERVER_PORT);
@@ -85,10 +83,14 @@ public final class Jams implements AppManagerCommandListener {
 		return Installer.getInstaller(securityToken, installSourceURL);
 	}
 
-	
+
 	public static void main(String argv[]) {
 		Jams ams;
 		AppManager appman;
+
+		runningIsolates = new Hashtable(3);
+
+		autostart_processed = false;
 
 		try {
 			//Try Comm App Manager
@@ -108,13 +110,13 @@ public final class Jams implements AppManagerCommandListener {
 
 		if ((appman == null) || !appman.isConnected()) {
 			if (appman != null) {
-				appman.setCommandListener(null);			
+				appman.setCommandListener(null);
 			}
 
 			try {
 				ams = new Jams(APPMANAGER_TYPE_NETWORK);
 				appman = ams.appman;
-				
+
 				//If Comm App Manager connected , auto-start application will not be auto-started
 				//If Network App Manager is not supported, auto-start application will not be auto-started too.
 				autoStartAll();
@@ -140,21 +142,21 @@ public final class Jams implements AppManagerCommandListener {
 						appman.wait();
 					}
 				} catch (InterruptedException e) {
-				} finally {				
+				} finally {
 					try {
-						appman.disconnect();	
+						appman.disconnect();
 					} catch (IOException ioe) {
 					}
 				}
 			}
-			
+
 			Logging.report(Logging.WARNING, LogChannels.LC_AMS, "AMS reconnecting in 10 seconds...");
 
 			try {
 				appman.disconnect();
 				Thread.sleep(10000);
-				
-				appman.connect();		
+
+				appman.connect();
 			} catch (IOException e) {
 				Logging.report(Logging.WARNING, LogChannels.LC_AMS, "AMS failed to connected to: "+appman.toString()+", for reason: "+e.toString());
 			} catch (InterruptedException ite) {
@@ -166,7 +168,7 @@ public final class Jams implements AppManagerCommandListener {
 		startApp(uniqueID, appName, mainClass);
 	}
 	synchronized public void commandRemoveApp(String uniqueID, String appName) {
-		if (runningIsolate != null) {
+		if (runningIsolates.get(appName) != null) {
 			try {
 				appman.response(uniqueID, AppManager.APPMAN_RESPCODE_APPNOTFINISH);
 			} catch (IOException e) {
@@ -174,7 +176,7 @@ public final class Jams implements AppManagerCommandListener {
 			}
 			return;
 		}
-		
+
 		if (!isInstalled(appName)) {
 			try {
 				appman.response(uniqueID, AppManager.APPMAN_RESPCODE_APPNOTEXIST);
@@ -183,7 +185,7 @@ public final class Jams implements AppManagerCommandListener {
 			}
 			return;
 		}
-		
+
 		Protocol fconn = new Protocol();
 		String filename = "//"+Jams.getAppdbRoot()+appName;
 		try {
@@ -207,13 +209,13 @@ public final class Jams implements AppManagerCommandListener {
 		}
 
 		fconn = null;
-		
+
 		try {
 			fconn = new Protocol();
 			fconn.openPrim(securityToken, filename+".aut", Connector.READ_WRITE, false);
 			if (fconn.exists()) {
 				fconn.delete();
-			}	
+			}
 			Logging.report(Logging.CRITICAL, LogChannels.LC_AMS, "Application uninstalled: "+appName);
 		} catch (IOException ex) {
 		} finally {
@@ -225,10 +227,19 @@ public final class Jams implements AppManagerCommandListener {
 			}
 		}
 	}
-	synchronized public void commandStopApp(String uniqueID) {
+	synchronized public void commandStopApp(String uniqueID, String stoppingAppName) {
+		Enumeration appNames = runningIsolates.keys();
+		Isolate runningIsolate = null;
+		while (appNames.hasMoreElements()) {
+			String appName = (String)appNames.nextElement();
+			if ((appName != null) && appName.equals(stoppingAppName)) {
+				runningIsolate = (Isolate)runningIsolates.get(appName);
+			}
+		}
 		if (runningIsolate != null) {
 			stoppingUniqueID = uniqueID;
 			runningIsolate.exit(0);
+			runningIsolates.remove(stoppingAppName);
 		} else {
 			try {
 				appman.response(uniqueID, AppManager.APPMAN_RESPCODE_APPFINISH, String.valueOf(0));
@@ -239,7 +250,7 @@ public final class Jams implements AppManagerCommandListener {
 	}
 	synchronized public void commandRestartApp(String uniqueID) {
 	}
-	
+
 	synchronized public void commandHeartbeat(String uniqueID) {
 		try {
 			appman.notifyConnected();
@@ -248,7 +259,7 @@ public final class Jams implements AppManagerCommandListener {
 			ioe.printStackTrace();
 		}
 	}
-	
+
 	synchronized public void commandInstallApp(boolean forceInstall, String uniqueID, String appName, String mainClass, String installSource, int length, boolean autoStart, boolean startAfterInstall) {
 		try {
 			if (!forceInstall && isInstalled(appName)) {
@@ -258,7 +269,7 @@ public final class Jams implements AppManagerCommandListener {
 				}
 			} else {
 				Installer inst = getInstaller(installSource);
-				
+
 				try {
 					inst.install(appName, mainClass, length, autoStart);
 					Logging.report(Logging.CRITICAL, LogChannels.LC_AMS, "Application installed: "+appName);
@@ -284,7 +295,7 @@ public final class Jams implements AppManagerCommandListener {
 			Protocol fconn = new Protocol();
 			fconn.openPrim(securityToken, filepath, Connector.READ_WRITE, false);
 			java.util.Enumeration em = fconn.list();
-			
+
 			while (em.hasMoreElements()) {
 				String filename = (String)em.nextElement();
 				appendAppNameToList(applist, filename);
@@ -306,24 +317,30 @@ public final class Jams implements AppManagerCommandListener {
 	}
 
 	synchronized public void commandListRunningApp(String uniqueID) {
-		String applist;
-		
-		if (runningIsolate != null) {
-			String cp = runningIsolate.getClassPath()[0];			
-			
+		StringBuffer applist;
+
+		if (runningIsolates.isEmpty()) {
+			applist = new StringBuffer("EMPTY_LIST");
+		} else {
+			Enumeration e = runningIsolates.elements();
+			applist = new StringBuffer();
+
+			while (e.hasMoreElements()) {
+				String cp = ((Isolate)e.nextElement()).getClassPath()[0];
+
 			int sep = cp.lastIndexOf('/');
 			if (sep == -1) {
 				sep = cp.lastIndexOf('\\');
 			}
 			sep++; //if sep == -1, then sep = 0
-			
+
 			if (cp.endsWith(".jar")) {
-				applist = cp.substring(sep, cp.length()-4);
+					applist.append(cp.substring(sep, cp.length()-4));
 			} else {
-				applist = cp.substring(sep);
+					applist.append(cp.substring(sep));
+				}
+				applist.append(";");
 			}
-		} else {
-			applist = new String("EMPTY_LIST");
 		}
 
 		try {
@@ -338,6 +355,13 @@ public final class Jams implements AppManagerCommandListener {
 
 	synchronized public void commandResetJVM(String uniqueID) {
 		Logging.report(Logging.INFORMATION, LogChannels.LC_AMS, "=============Reset now by server command=============");
+
+		try {
+			appman.response(uniqueID, AppManager.APPMAN_RESPCODE_RESETJVM);
+		} catch (IOException ioe) {
+			ioe.printStackTrace();
+		}
+
 		platformControl.reset();
 	}
 
@@ -347,55 +371,46 @@ public final class Jams implements AppManagerCommandListener {
 	}
 
 	private static void startApp(final String uniqueID, final String appName, final String mainClass) {
-		if (runningIsolate != null) {
+		if (runningIsolates.get(appName) != null) {
 			Logging.report(Logging.ERROR, LogChannels.LC_AMS, "[startApp]There's another application running. Failed to start: "+appName);
 			try {
-				appman.response(uniqueID, AppManager.APPMAN_RESPCODE_APPNOTFINISH);
+				if (appman != null) appman.response(uniqueID, AppManager.APPMAN_RESPCODE_APPNOTFINISH);
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
 			return;
 		}
-		
+
 		new Thread( new Runnable() {
 			public void run() {
-				boolean flag = false;
 				try {
 					Logging.report(Logging.CRITICAL, LogChannels.LC_AMS, "New Isolate: "+mainClass+","+appName+".jar");
 					if (!isInstalled(appName)) {
 						throw new ClassNotFoundException();
 					}
-					Isolate iso = null;
-					synchronized (startSyncObj) {
-						if (runningIsolate != null) {
-							Logging.report(Logging.WARNING, LogChannels.LC_AMS, "[startApp]There's another application running.");
-							return;
-						}
-						iso = new Isolate(mainClass, new String[0], new String[]{getAppdbNativeRoot()+appName+".jar"});
+					Isolate iso = new Isolate(mainClass, new String[0], new String[]{getAppdbNativeRoot()+appName+".jar"});
 						Logging.report(Logging.INFORMATION, LogChannels.LC_AMS, "New Isolate: "+appName+" about to start");
 						iso.start();
 						Logging.report(Logging.INFORMATION, LogChannels.LC_AMS, "New Isolate: "+appName+" started, waiting for exit...");
 						try {
-							appman.response(uniqueID, AppManager.APPMAN_RESPCODE_APPSTARTOK);
+						if (appman != null) appman.response(uniqueID, AppManager.APPMAN_RESPCODE_APPSTARTOK);
 						} catch (IOException ioe) {
 							ioe.printStackTrace();
 						}
-						runningIsolate = iso;
-						flag = true;
-					}
+					runningIsolates.put(appName, iso);
 					stoppingUniqueID = null;
 					iso.waitForExit();
 					int exitcode = iso.exitCode();
 					Logging.report(Logging.CRITICAL, LogChannels.LC_AMS, "Isolate: "+appName+" exit with code:"+exitcode);
 					try {
-						appman.response(stoppingUniqueID != null?stoppingUniqueID:uniqueID, AppManager.APPMAN_RESPCODE_APPFINISH, String.valueOf(exitcode));
+						if (appman != null) appman.response(stoppingUniqueID != null?stoppingUniqueID:uniqueID, AppManager.APPMAN_RESPCODE_APPFINISH, String.valueOf(exitcode));
 					} catch (IOException ioe) {
 						ioe.printStackTrace();
 					}
 				} catch (IsolateStartupException ise) {
 					ise.printStackTrace();
 					try {
-						appman.response(uniqueID, AppManager.APPMAN_RESPCODE_APPSTARTERROR);
+						if (appman != null) appman.response(uniqueID, AppManager.APPMAN_RESPCODE_APPSTARTERROR);
 					} catch (IOException ioe) {
 						ioe.printStackTrace();
 					}
@@ -403,14 +418,12 @@ public final class Jams implements AppManagerCommandListener {
 
 					cnfe.printStackTrace();
 					try {
-						appman.response(uniqueID, AppManager.APPMAN_RESPCODE_APPNOTEXIST);
+						if (appman != null) appman.response(uniqueID, AppManager.APPMAN_RESPCODE_APPNOTEXIST);
 					} catch (IOException ioe) {
 						ioe.printStackTrace();
 					}
 				} finally {
-					if (flag) {
-						runningIsolate = null;
-					}
+					runningIsolates.remove(appName);
 				}
 			}
 		}).start();
@@ -492,12 +505,17 @@ public final class Jams implements AppManagerCommandListener {
 		return null;
 	}
 
-	
+
 	private StreamConnection getLocalHostConnection() {
 		return null;
-	}	
+	}
 
 	private static void autoStartAll() {
+		if (autostart_processed) {
+			return;
+		} else {
+			autostart_processed = true;
+		}
 		String filepath = "//"+Jams.getAppdbRoot();
 		Logging.report(Logging.INFORMATION, LogChannels.LC_AMS, "Try to find auto-start application...");
 		try {
@@ -509,17 +527,17 @@ public final class Jams implements AppManagerCommandListener {
 				if (filename.endsWith(".aut")) {
 					Protocol asfile = new Protocol();
 					asfile.openPrim(securityToken, filepath+filename, Connector.READ_WRITE, false);
-					
+
 					String appname = filename.substring(0, filename.length()-4);
-					if (!isInstalled(appname)) {						
-						asfile.delete();						
+					if (!isInstalled(appname)) {
+						asfile.delete();
 					} else {
-						
+
 						InputStream in = asfile.openInputStream();
 						byte[] buf = new byte[64];
 						int len = in.read(buf);
 						in.close();
-						
+
 						String mainclass = new String(buf, 0, len);
 						Logging.report(Logging.INFORMATION, LogChannels.LC_AMS, "Find auto start application: "+appname);
 						startApp(null, appname, mainclass);
@@ -651,6 +669,10 @@ public final class Jams implements AppManagerCommandListener {
 		}
 	}
 
+	public static AppManager getAppMan() {
+		return appman;
+	}
+
 	public void event(int event_code, int arg) {
 		return;
 	}
@@ -665,4 +687,3 @@ public final class Jams implements AppManagerCommandListener {
     	}
 	}
 }
-

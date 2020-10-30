@@ -69,7 +69,8 @@ public class AMSCommandDispacher implements Runnable {
 						break;
 					case AMSMessage.MESSAGE_TYPE_ID_STOP_APP:
 						if (appmanager.isConnected()) {
-							cmdListener.commandStopApp(server_cmd.uniqueID());
+							cmdListener.commandStopApp(server_cmd.uniqueID(),
+														parseAsString(server_cmd.body(), "APPNAME="));
 						}
 						break;
 					case AMSMessage.MESSAGE_TYPE_ID_DELETE_APP:

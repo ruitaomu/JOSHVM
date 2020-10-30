@@ -41,13 +41,11 @@ class CommInstaller extends Installer {
 		final ConsoleConnection console = new ConsoleConnection();;
 
 		try {
-			/***
-			 * TODO: BUG! Comm port will be open twice here! Fix required
-			 *
-			 */
-			sc = (StreamConnection)Connector.open(installSource+";baudrate=115200;blocking=off");
-			OutputStream os = sc.openOutputStream();
-			InputStream is = sc.openInputStream();
+			
+			AppManager appman = Jams.getAppMan();
+			
+			OutputStream os = appman.getOutputStream();
+			InputStream is = appman.getInputStream();
 
 			console.open(os, is);
 			console.sendRequest(org.joshvm.ams.consoleams.ams.REQUEST_START_DOWNLOAD);
