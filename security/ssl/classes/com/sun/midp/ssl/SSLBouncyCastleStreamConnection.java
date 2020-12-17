@@ -197,8 +197,7 @@ public class SSLBouncyCastleStreamConnection implements StreamConnection {
                     cipherSuite = "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256"; //Hard coded for now???
                 } else {
                     //See DefaultTlsClient.getCipherSuites()
-                    throw new IOException("Unsupported CipherSuite:"+cipherSuiteCode+
-                        ". Client currently only support TLS_RSA_WITH_AES_128_CBC_SHA or TLS_RSA_WITH_AES_128_CBC_SHA256");
+                    throw new IOException("Unsupported CipherSuite:"+cipherSuiteCode);
                 }
 			} else {
 				throw new IOException("No server certificate found!");
