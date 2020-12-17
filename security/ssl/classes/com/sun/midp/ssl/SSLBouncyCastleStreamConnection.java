@@ -193,6 +193,8 @@ public class SSLBouncyCastleStreamConnection implements StreamConnection {
     				cipherSuite = "TLS_RSA_WITH_AES_128_CBC_SHA"; //Hard coded for now???
                 } else if (cipherSuiteCode == CipherSuite.TLS_RSA_WITH_AES_128_CBC_SHA256) {
                     cipherSuite = "TLS_RSA_WITH_AES_128_CBC_SHA256"; //Hard coded for now???
+                } else if (cipherSuiteCode == CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) {
+                    cipherSuite = "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256"; //Hard coded for now???
                 } else {
                     //See DefaultTlsClient.getCipherSuites()
                     throw new IOException("Unsupported CipherSuite:"+cipherSuiteCode+
