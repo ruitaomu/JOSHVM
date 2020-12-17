@@ -104,6 +104,28 @@ public abstract class AbstractTlsClient
             TlsUtils.addSignatureAlgorithmsExtension(clientExtensions, supportedSignatureAlgorithms);
         }
 
+        if (TlsECCUtils.containsECCCipherSuites(getCipherSuites()))
+        {
+            /*
+             * RFC 4492 5.1. A client that proposes ECC cipher suites in its ClientHello message
+             * appends these extensions (along with any others), enumerating the curves it supports
+             * and the point formats it can parse. Clients SHOULD send both the Supported Elliptic
+             * Curves Extension and the Supported Point Formats Extension.
+             */
+            /*
+             * TODO Could just add all the curves since we support them all, but users may not want
+             * to use unnecessarily large fields. Need configuration options.
+             */
+            this.namedCurves = new int[]{ NamedCurve.secp256r1, NamedCurve.secp384r1 };
+            this.clientECPointFormats = new short[]{ ECPointFormat.uncompressed,
+                ECPointFormat.ansiX962_compressed_prime, ECPointFormat.ansiX962_compressed_char2, };
+
+            clientExtensions = TlsExtensionsUtils.ensureExtensionsInitialised(clientExtensions);
+
+            TlsECCUtils.addSupportedEllipticCurvesExtension(clientExtensions, namedCurves);
+            TlsECCUtils.addSupportedPointFormatsExtension(clientExtensions, clientECPointFormats);
+        }
+
         return clientExtensions;
     }
 
@@ -142,57 +164,68 @@ public abstract class AbstractTlsClient
     }
 
     public void processServerExtensions(Hashtable serverExtensions)
-        throws IOException
+    		throws IOException
     {
-        /*
-         * TlsProtocol implementation validates that any server extensions received correspond to
-         * client extensions sent. By default, we don't send any, and this method is not called.
-         */
-        if (serverExtensions != null)
-        {
-            /*
-             * RFC 5246 7.4.1.4.1. Servers MUST NOT send this extension.
-             */
-            checkForUnexpectedServerExtension(serverExtensions, TlsUtils.EXT_signature_algorithms);
+    	/*
+    	 * TlsProtocol implementation validates that any server extensions received correspond to
+    	 * client extensions sent. By default, we don't send any, and this method is not called.
+    	 */
+    	if (serverExtensions != null)
+    	{
+    		/*
+    		 * RFC 5246 7.4.1.4.1. Servers MUST NOT send this extension.
+    		 */
+    		checkForUnexpectedServerExtension(serverExtensions, TlsUtils.EXT_signature_algorithms);
 
-            /*
-             * RFC 7685 3. The server MUST NOT echo the extension.
-             */
-            checkForUnexpectedServerExtension(serverExtensions, TlsExtensionsUtils.EXT_padding);
-        }
+    		checkForUnexpectedServerExtension(serverExtensions, TlsECCUtils.EXT_elliptic_curves);
+
+    		if (TlsECCUtils.isECCCipherSuite(this.selectedCipherSuite))
+    		{
+    			this.serverECPointFormats = TlsECCUtils.getSupportedPointFormatsExtension(serverExtensions);
+    		}
+    		else
+    		{
+    			checkForUnexpectedServerExtension(serverExtensions, TlsECCUtils.EXT_ec_point_formats);
+    		}
+
+    		/*
+    		 * RFC 7685 3. The server MUST NOT echo the extension.
+    		 */
+    		checkForUnexpectedServerExtension(serverExtensions, TlsExtensionsUtils.EXT_padding);
+    	}
     }
 
     public void processServerSupplementalData(Vector serverSupplementalData)
-        throws IOException
+    		throws IOException
     {
-        if (serverSupplementalData != null)
-        {
-            throw new TlsFatalAlert(AlertDescription.unexpected_message);
-        }
+    	if (serverSupplementalData != null)
+    	{
+    		throw new TlsFatalAlert(AlertDescription.unexpected_message);
+    	}
     }
 
     public Vector getClientSupplementalData()
-        throws IOException
+    		throws IOException
     {
-        return null;
+    	return null;
     }
 
     public TlsCompression getCompression()
-        throws IOException
+    		throws IOException
     {
-        switch (selectedCompressionMethod)
-        {
-        case CompressionMethod._null:
-            return new TlsNullCompression();
+    	switch (selectedCompressionMethod)
+    	{
+    	case CompressionMethod._null:
+    		return new TlsNullCompression();
 
-        default:
-            /*
-             * Note: internal error here; the TlsProtocol implementation verifies that the
-             * server-selected compression method was in the list of client-offered compression
-             * methods, so if we now can't produce an implementation, we shouldn't have offered it!
-             */
-            throw new TlsFatalAlert(AlertDescription.internal_error);
-        }
+    	default:
+    		/*
+    		 * Note: internal error here; the TlsProtocol implementation verifies that the
+    		 * server-selected compression method was in the list of client-offered compression
+    		 * methods, so if we now can't produce an implementation, we shouldn't have offered it!
+    		 */
+    		throw new TlsFatalAlert(AlertDescription.internal_error);
+    	}
     }
 
     public TlsCipher getCipher()
