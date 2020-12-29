@@ -21,16 +21,22 @@
 package org.joshvm.crypto.keystore;
 
 import com.sun.midp.publickeystore.WebPublicKeyStore;
+import java.util.Hashtable;
 
 /**
- * The utility class to initialize WebPublicKeyStore with user-specified keystore file
+ * The utility class to initialize WebPublicKeyStore and get specified PrivateKeyStore.
  *
  */
 
 public class KeyStore {
+    private final static Hashtable keyStores = new Hashtable();
+    private static PrivateKeyStore selectedKeyStore = null;
+    
+    private final static String DEFAULT_PRIVATE_STORE_PACKAGE_NAME = "org.joshvm.crypto.keystore";
+    private final static String DEFAULT_PRIVATE_STORE_CLASS_NAME = "UserKeystore";    
 
 	/**
-	 * Initialized WebPublicKeyStore with the specified keystore file from resource
+	 * Initialized WebPublicKeyStore with the user-specified keystore file from resource
 	 *
 	 * @param classToResource the class of the loading resource file
 	 * @param pathToResource path of the resource file of keystore
@@ -49,4 +55,30 @@ public class KeyStore {
 		
 		WebPublicKeyStore.initKeystoreLocation(classToResource, pathToResource);
 	}
+
+    /**
+     * Select a private key store to use
+     *
+     * @param privateKeyStoreType Private key store provider, null means that default key store type is used.
+     * 
+     * @return The key store for storage of private keys and certificates. Return null if the specified key store type not available.
+     *
+     */
+    public static PrivateKeyStore selectPrivateKeyStore(String privateKeyStoreType) {
+        if (privateKeyStoreType == null) {
+            privateKeyStoreType = DEFAULT_PRIVATE_STORE_CLASS_NAME;
+        }
+
+        try {
+            Class clazz = Class.forName(DEFAULT_PRIVATE_STORE_PACKAGE_NAME+"."+privateKeyStoreType);
+            selectedKeyStore = (PrivateKeyStore)clazz.newInstance();
+            return selectedKeyStore;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    public static PrivateKeyStore getSelectedPrivateKeyStore() {
+        return selectedKeyStore;
+    }
 }

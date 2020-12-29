@@ -17,6 +17,8 @@ static void timer_callback(void* arg) {
     func(handle);
 }
 
+static javacall_int64 rtc_time_offset = 0;
+
 /**
  *
  * Create a native timer to expire in wakeupInSeconds or less seconds.
@@ -114,9 +116,13 @@ char* javacall_time_get_local_timezone(void){
  * @return milliseconds elapsed since midnight (00:00:00), January 1, 1970
  */
 javacall_int64 /*OPTIONAL*/ javacall_time_get_milliseconds_since_1970(void){
-    return (javacall_int64)esp_timer_get_time()/1000LL;
+    return rtc_time_offset + (javacall_int64)esp_timer_get_time()/1000LL;
 }
 
+javacall_result javacall_time_set_milliseconds_since_1970(javacall_int64 ms) {
+    rtc_time_offset = ms - (javacall_int64)esp_timer_get_time()/1000LL;
+    return JAVACALL_OK;
+}
 
 /*
  *

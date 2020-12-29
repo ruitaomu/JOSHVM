@@ -104,9 +104,9 @@ public class MediaRecorder {
 	 * Sets the format of the output file produced during recording.
 	 * 
 	 * @param outFormat the output format to use. See
-	 *            {@link AudioFormat#FORMAT_WAV},
-	 *            {@link AudioFormat#FORMAT_AMR_NB} and
-	 *            {@link AudioFormat#FORMAT_AMR_WB}
+	 *            {@link MediaFormat#FORMAT_WAV},
+	 *            {@link MediaFormat#FORMAT_AMR_NB} and
+	 *            {@link MediaFormat#FORMAT_AMR_WB}
 	 * @throws IllegalArgumentException
 	 */
 	public void setOutputFormat(int outFormat) throws IllegalArgumentException {

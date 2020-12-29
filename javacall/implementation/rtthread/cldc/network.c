@@ -629,7 +629,7 @@ javacall_result javacall_network_gethostbyname_start(char *hostname,
 	struct sockaddr_in sa;
 
 	if ((ip_version == JAVACALL_IP_VERSION_ANY) || (ip_version == JAVACALL_IP_VERSION_4)) {
-		if (inet_pton(AF_INET, hostname, &(sa.sin_addr)) == 1) {
+		if (ip4addr_aton(hostname, &(sa.sin_addr)) != 0) {
 			if (maxLen < 4) {
 				return JAVACALL_INVALID_ARGUMENT;
 			}
@@ -639,13 +639,14 @@ javacall_result javacall_network_gethostbyname_start(char *hostname,
 	}
 
 	if ((ip_version == JAVACALL_IP_VERSION_ANY) || (ip_version == JAVACALL_IP_VERSION_6)) {
-		if (inet_pton(AF_INET6, hostname, &(sa.sin_addr)) == 1) {
-			if (maxLen < 16) {
-				return JAVACALL_INVALID_ARGUMENT;
-			}
-			memcpy(pAddress, (char*)&sa.sin_addr, 16);
-			return JAVACALL_OK;
-		}
+		//if (ip6addr_aton(hostname, &(sa.sin_addr)) != 0) {
+		//	if (maxLen < 16) {
+		//		return JAVACALL_INVALID_ARGUMENT;
+		//	}
+		//	memcpy(pAddress, (char*)&sa.sin_addr, 16);
+		//	return JAVACALL_OK;
+		//}
+		return JAVACALL_NOT_IMPLEMENTED;
 	}
 
 	int hlen = hostname?strlen(hostname):-1;

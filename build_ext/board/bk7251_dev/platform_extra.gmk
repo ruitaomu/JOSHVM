@@ -1,0 +1,39 @@
+# Copyright (C) Max Mu
+# DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER
+# 
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# version 2, as published by the Free Software Foundation.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License version 2 for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+# 
+# Please visit www.joshvm.org if you need additional information or
+# have any questions.
+
+PLATFORM_EXTRA_CFLAGS:= -mcpu=arm968e-s -mthumb-interwork -mthumb -ffunction-sections -fdata-sections -std=c99 -Wall -O2 -Os -w
+
+PLATFORM_EXTRA_CFLAGS_DEF:= -DHAVE_CCONFIG_H -DLWIP_NO_LIMITS_H -DRT_USING_NEWLIB -DCFG_SUPPORT_RTT -DLWIP_IPV6=1
+
+PLATFORM_EXTRA_CFLAGS_INC:= -I$(RTTHREAD_HOME_DIR)/include \
+ -I$(RTTHREAD_HOME_DIR)/include/libc \
+ -I$(RTTHREAD_HOME_DIR)/../beken378/common \
+ -I$(RTTHREAD_HOME_DIR)/../beken378/driver/include \
+ -I$(RTTHREAD_HOME_DIR)/../beken378/driver/audio \
+ -I$(RTTHREAD_HOME_DIR)/.. \
+ -I$(RTTHREAD_HOME_DIR)/components/finsh \
+ -I$(RTTHREAD_HOME_DIR)/components/drivers/include \
+ -I$(RTTHREAD_HOME_DIR)/components/dfs/include \
+ -I$(RTTHREAD_HOME_DIR)/components/libc/compilers/newlib \
+ -I$(RTTHREAD_HOME_DIR)/components/net/lwip-2.0.2/src \
+ -I$(RTTHREAD_HOME_DIR)/components/net/lwip-2.0.2/src/include \
+ -I$(RTTHREAD_HOME_DIR)/components/net/lwip-2.0.2/src/include/ipv4 \
+ -I$(RTTHREAD_HOME_DIR)/components/net/lwip-2.0.2/src/arch/include \
+ -I$(RTTHREAD_HOME_DIR)/components/net/lwip-2.0.2/src/include/netif \
+ -I$(RTTHREAD_HOME_DIR)/components/net/lwip-2.0.2/src/include/posix

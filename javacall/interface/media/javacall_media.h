@@ -93,8 +93,6 @@ javacall_result javacall_media_get_duration(javacall_handle handle, /*OUT*/ int*
 javacall_result javacall_media_get_max_volume(/*OUT*/ int* volume);
 javacall_result javacall_media_get_volume(/*OUT*/ int* volume);
 javacall_result javacall_media_set_volume(int volume);
-javacall_result javacall_media_add_volume();
-javacall_result javacall_media_sub_volume();
 
 javacall_result javacall_media_event_init();
 javacall_result javacall_media_event_finalize();

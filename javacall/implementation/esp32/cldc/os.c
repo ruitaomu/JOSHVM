@@ -41,6 +41,11 @@ void javacall_os_hardware_reset() {
 	esp_restart();
 }
 
+int javacall_os_set_system_time(javacall_int64 time) {
+	extern javacall_result javacall_time_set_milliseconds_since_1970(javacall_int64 ms);
+	return javacall_time_set_milliseconds_since_1970(time);
+}
+
 #ifdef __cplusplus
 }
 #endif

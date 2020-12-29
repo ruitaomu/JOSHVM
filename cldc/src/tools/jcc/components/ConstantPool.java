@@ -32,10 +32,10 @@ import java.util.Vector;
 import java.util.Enumeration;
 import java.io.IOException;
 import java.io.PrintStream;
-import sun.misc.Compare;
+import java.util.Comparator;
 
 public 
-class ConstantPool implements Compare {
+class ConstantPool implements Comparator<ConstantObject> {
 
     protected Hashtable	h;	// for "quick" lookup
     protected Vector	t;	// for enumeration in order
@@ -51,6 +51,20 @@ class ConstantPool implements Compare {
 	n = 1;
     }
     
+    /**
+     * Implementation method of Comprator interface
+     *
+     */
+    public int compare(ConstantObject o1, ConstantObject o2) {
+        if  (o1.ldcReferences < o2.ldcReferences) {
+            return -1;
+        } else if (o1.ldcReferences == o2.ldcReferences) {
+            return 0;
+        } else {
+            return 1;
+        }
+    }
+
     /**
      * doCompare
      *   
@@ -83,7 +97,7 @@ class ConstantPool implements Compare {
 
 	// Sorting the ConstantObject with descending reference
 	// count.	
-	sun.misc.Sort.quicksort(arr, this);
+	java.util.Arrays.sort(arr, this);
 
 	t.removeAllElements();
 	t.addElement(null);

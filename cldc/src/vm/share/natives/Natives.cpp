@@ -1574,6 +1574,15 @@ void Java_org_joshvm_system_PlatformControl_reset0() {
   OsMisc_hardware_power_reset();
 }
 
+jint Java_org_joshvm_system_PlatformControl_setSystemTime() {
+  jlong millis = KNI_GetParameterAsLong(1);
+  if (OsMisc_set_system_time(millis) == 0) {
+    // set successfully
+    return 1;
+  }
+  return 0;
+}
+
 } // extern "C"
 
 #if (!ROMIZING) || (!defined(PRODUCT))

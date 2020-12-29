@@ -43,40 +43,18 @@ public class AudioManager {
 	}
 
 	/**
-	 * Increase volume
-	 *
-	 * @throws IOException if an I/O error occurs.
-	 */
-	public static void addVoice() throws IOException {
-		addVoice0();
-	}
-
-	/**
-	 * Decrease volume
-	 *
-	 * @throws IOException if an I/O error occurs.
-	 */
-	public static void subVoice() throws IOException {
-		subVoice0();
-	}
-
-	/**
 	 * Set the current volume with value between 0 and maximum volume.
 	 *
 	 * @param volume the new volume
 	 * @throws IOException if an I/O error occurs.
 	 */
-	public static void setVoice(int volume) throws IOException {
-		setVoice0(volume);
+	public static void setVolume(int volume) throws IOException {
+		setVolume0(volume);
 	}
 
 	private static native int getMaxVolume0();
 
 	private static native int getCurrentVolume0();
 
-	private static native void addVoice0();
-
-	private static native void subVoice0();
-
-	private static native void setVoice0(int volume);
+	private static native void setVolume0(int volume);
 }

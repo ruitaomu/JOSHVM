@@ -137,9 +137,9 @@ int joshvm_esp32_media_create(int type, void** handle)
 		//printf("---<<<MEGA_ESP32 Firmware Version Alpha_v1.5001>>>---\r\n");	
 		printf("-------------------------- JOSH OPEN SMART HARDWARE --------------------------\n");
 		printf("|                                                                            |\n");
-		printf("|                    MEGA_ESP32 Firmware Version v1.0.1                      |\n");
+		printf("|                    MEGA_ESP32 Firmware Version v1.0.2.7                    |\n");
 		printf("|                         For ESP32-LyraT-Mini-v1.1                          |\n");
-		printf("|                         Compile data:Dec. 12 2019                          |\n");
+		printf("|                         Compile data:Jan. 3 2020                           |\n");
 		printf("------------------------------------------------------------------------------\n");		
 	}
 
@@ -1057,5 +1057,15 @@ int joshvm_esp32_media_sub_volume()
 	ESP_LOGI(TAG,"joshvm_esp32_media_sub_volume");
 	joshvm_volume_adjust_handler(-9);
 	return 0;
+}
+
+int joshvm_esp32_get_sys_info(char* info, int size)
+{
+	char firmware_version[] = "<<<ESP32-LyraT-Mini_v1.1 Firmware Version v1.0.2.7>>>";
+	if(size < strlen(firmware_version)){
+		return JOSHVM_FAIL;
+	}
+	strncpy(info, firmware_version, strlen(firmware_version));
+	return JOSHVM_OK;
 }
 

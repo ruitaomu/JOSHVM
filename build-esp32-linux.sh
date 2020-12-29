@@ -22,7 +22,7 @@ unset ERASE_BUILD_OUTPUT
 unset TOOLCHAIN_HOME_DIR
 ENABLE_JSR_120=false
 ENABLE_JSR_75=true
-ENABLE_JAMS=false
+ENABLE_JAMS=true
 ENABLE_JAVACALL_TEST=false
 ENABLE_DIO=true
 ENABLE_CELLULAR=true
@@ -90,9 +90,10 @@ then
 	BUILD_CLDC=true
 fi
 
-if [ -z "${TOOLCHAIN_HOME_DIR}" ]
+if [ -z "${PLATFORM_DIR}" ]
 then
-	echo TOOLCHAIN_HOME_DIR should be set to cross compiler tools home
+	echo PLATFORM_DIR set to ${IDF_PATH}
+	PLATFORM_DIR=${IDF_PATH}  
 fi
 
 if [ "${TARGET_BOARD}" = "ESP_WROVER" ]
@@ -155,7 +156,7 @@ then
 			ENABLE_DYNAMIC_PROP=${ENABLE_DYNAMIC_PROP} \
 			ENABLE_TEST=${ENABLE_JAVACALL_TEST} \
 			TOOLCHAIN_HOME_DIR=${TOOLCHAIN_HOME_DIR} \
-			{TARGET_BOARD}=${TARGET_BOARD} \
+			TARGET_BOARD=${TARGET_BOARD} \
 			${DEBUG_OPTION}
 	fi
 	if [ $? != 0 ];then

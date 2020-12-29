@@ -270,7 +270,7 @@ endif
 
 ROMGEN_CFG_FILES += $(ROM_CONFIG_FILE)
 
-ROM_GEN_ARG         += $(ROM_GEN_FLAGS) =HeapCapacity16M
+ROM_GEN_ARG         += $(ROM_GEN_FLAGS) =HeapCapacity80M
 ROM_GEN_ARG         += -romconfig $(ROMGEN_CFG_LST)
 ROM_GEN_ARG         += -romincludepath $(WorkSpace)/src/vm
 ROM_GEN_ARG         += +RewriteROMConstantPool
@@ -327,6 +327,7 @@ endif
 
 ifeq ($(ENABLE_EXTRA_PROTOCOLS), true)
 Obj_Files           +=         $(PROTOCOL_Obj_Files)
+ENABLE_CFLAGS       +=         $(OPT_MODULE_EXTRAPROTO_CFLAGS)
 endif
 
 ifeq ($(ENABLE_DIRECTUI), true)
@@ -1959,11 +1960,19 @@ else
 gcc_arch = $(host_arch)
 endif
 
+ifeq ($(GNU_TOOLS_DIR),)
+GCC_PREFIX_arm     = $(GNU_TOOLS_PREFIX)
+GCC_PREFIX_sh      = $(GNU_TOOLS_PREFIX)
+GCC_PREFIX_mips    = $(GNU_TOOLS_PREFIX)
+GCC_PREFIX_thumb2  = $(GNU_TOOLS_PREFIX)
+GCC_PREFIX_xtensa  = $(GNU_TOOLS_PREFIX)
+else
 GCC_PREFIX_arm     = $(GNU_TOOLS_DIR)/bin/$(GNU_TOOLS_PREFIX)
 GCC_PREFIX_sh      = $(GNU_TOOLS_DIR)/bin/$(GNU_TOOLS_PREFIX)
 GCC_PREFIX_mips    = $(GNU_TOOLS_DIR)/bin/$(GNU_TOOLS_PREFIX)
 GCC_PREFIX_thumb2  = $(GNU_TOOLS_DIR)/bin/$(GNU_TOOLS_PREFIX)
 GCC_PREFIX_xtensa  = $(GNU_TOOLS_DIR)/bin/$(GNU_TOOLS_PREFIX)
+endif
 GCC_PREFIX_i386    =
 GCC_PREFIX_sparc   =
 GCC_PREFIX_powerpc =

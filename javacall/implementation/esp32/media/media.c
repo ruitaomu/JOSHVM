@@ -705,16 +705,6 @@ javacall_result javacall_media_set_volume(int volume) {
     return convertNativeResult(result);
 }
 
-javacall_result javacall_media_add_volume() {
-    int result = joshvm_esp32_media_add_volume();
-    return convertNativeResult(result);
-}
-
-javacall_result javacall_media_sub_volume() {
-    int result = joshvm_esp32_media_sub_volume();
-    return convertNativeResult(result);
-}
-
 
 javacall_result javacall_media_event_init() {
     media_lock();
