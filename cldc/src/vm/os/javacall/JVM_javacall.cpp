@@ -324,6 +324,9 @@ void javanotify_socket_event(
 	rd.descriptor = (int)socket_handle;
 
 	switch (type) {
+		case JAVACALL_EVENT_SERVER_SOCKET_ACCEPT_COMPLETED:
+			rd.waitingFor = NETWORK_READ_SIGNAL;
+			break;
 		case JAVACALL_EVENT_SOCKET_CONNECT_COMPLETED:
 		case JAVACALL_EVENT_SOCKET_SEND:
 			rd.waitingFor= NETWORK_WRITE_SIGNAL;

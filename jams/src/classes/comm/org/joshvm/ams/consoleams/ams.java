@@ -36,7 +36,9 @@ public class ams {
 	static final public int REQUEST_RUN_APP_MAINCLASS = 5;
 	static final public int REQUEST_START_DOWNLOAD = 6;
 	static final public int REQUEST_DOWNLOAD_APP_NEXT_BLOCK = 7;
-
+	static final public int REQUEST_DOWNLOAD_APP_AUTORUNFLAG = 8;
+	static final public int REQUEST_DOWNLOAD_APP_MAINCLASS = 9;
+	static final public int REQUEST_STOP_APP_FILENAME = 10;
 
 
 	static final public int REQUEST_SET_SYSTIME = 11;
@@ -48,7 +50,9 @@ public class ams {
 	static final public int 	COMMAND_STOP_APP = 33;
 	static final public int COMMAND_ERASE_APP = 35;
 	static final public int COMMAND_NO_MORE_COMMAND = 36;
-
+	static final public int COMMAND_RUN_BG_APP = 37;
+	static final public int COMMAND_LIST_RUNNING_APP = 38;
+	static final public int COMMAND_RESET_JVM = 39;
 
 	
 	static final public int COMMAND_SET_SYSTIME = 40;
@@ -60,6 +64,11 @@ public class ams {
 	static final public int REPORT_FINISH_LISTAPP = 61;
 	static final public int REPORT_FINISH_RUNAPP = 62;
 	static final public int REPORT_FINISH_ERASEAPP = 63;
+	static final public int REPORT_START_RUNAPP = 64;
+	static final public int REPORT_ERROR_RUNAPP = 65;
+	static final public int REPORT_NONEXIST_RUNAPP = 66;
+	static final public int REPORT_FINISH_LISTRUNNINGAPP = 67;	
+	static final public int REPORT_JVM_RESET = 68;	
 	/*ERROR REPORT CODE*/
 	static final public int REPORT_FAIL_DOWNLOAD = 100;
 	static final public int REPORT_GENERAL_FAIL = 255;
@@ -70,6 +79,7 @@ public class ams {
 	OutputStream com_os;
 	InputStream com_is;
 	String commport;
+	int commBaudrate;
 
 	protected boolean connected;
 	protected ConsoleConnection console;
@@ -87,6 +97,7 @@ public class ams {
 		connected = false;
 		console = new ConsoleConnection();
 		commport = "COM0";
+		commBaudrate = 115200;
 	}
 
 	protected void init(String port) {
@@ -100,6 +111,11 @@ public class ams {
 
 	protected String getRunAppMainClass() throws IOException, ConnectionResetException {
 		console.sendRequest(REQUEST_RUN_APP_MAINCLASS);
+		return console.receiveString();
+	}
+
+	protected String getStoppingAppName() throws IOException, ConnectionResetException {
+		console.sendRequest(REQUEST_STOP_APP_FILENAME);
 		return console.receiveString();
 	}
 
@@ -140,6 +156,18 @@ public class ams {
 	protected int getDownloadAppLength() throws IOException, ConnectionResetException {
 		console.sendRequest(REQUEST_DOWNLOAD_APP_FILELENGTH);
 		return console.receiveInt();
+	}
+
+	
+	//Version 2: Make CommAppManager possible to set autostart
+	protected String getAutoRunFlag() throws IOException, ConnectionResetException {
+		console.sendRequest(REQUEST_DOWNLOAD_APP_AUTORUNFLAG);
+		return console.receiveString();
+	}
+	
+	protected String getDownloadAppMainClass() throws IOException, ConnectionResetException {
+		console.sendRequest(REQUEST_DOWNLOAD_APP_MAINCLASS);
+		return console.receiveString();
 	}
 
 	protected int getSysTimeUTCSecond() throws IOException, ConnectionResetException {
@@ -213,7 +241,12 @@ public class ams {
 		if (connected)
 			return;
 
-		sc = (StreamConnection)Connector.open("comm:"+commport+";baudrate=115200;blocking=off");
+		String strConnection = System.getProperty("org.joshvm.ams.jams.localconn");
+		if (strConnection == null) {
+			strConnection = "comm:"+commport+";baudrate="+commBaudrate+";blocking=off";
+		}
+
+		sc = (StreamConnection)Connector.open(strConnection);
 		com_os = sc.openOutputStream();
 		com_is = sc.openInputStream();
 		connected = true;
@@ -242,6 +275,14 @@ public class ams {
 		sc = null;
 		connected = false;
 		console.close();
+	}
+
+	public OutputStream getOutputStream() {
+		return com_os;
+	}
+	
+	public InputStream getInputStream() {
+		return com_is;
 	}
 	
 	public static int main(String argv[]) {

@@ -21,6 +21,8 @@
 package org.joshvm.ams.jams;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 
 public interface AppManager {
 	/*REQUEST CODE*/
@@ -62,6 +64,7 @@ public interface AppManager {
 	static final public int APPMAN_RESPCODE_APPNOTEXIST = 103;
 	static final public int APPMAN_RESPCODE_DELETEFAIL = 104;
 	static final public int APPMAN_RESPCODE_APPNOTFINISH = 105;
+	static final public int APPMAN_RESPCODE_RESETJVM = 106;
 
 	/*App Manger Event*/
 	static final public int APPMAN_EVENT_APPINSTALLSTART = 10001;
@@ -85,5 +88,7 @@ public interface AppManager {
 	public AppManagerCommandListener getCommandListener();
 	public void notifyConnected();
 	public void init(String param);
+	public OutputStream getOutputStream();
+	public InputStream getInputStream();
 }
 

@@ -48,7 +48,7 @@ USE_NAMS=false
 ENABLE_THUMB=false
 ENABLE_JSR_120=true
 ENABLE_JSR_75=true
-ENABLE_JAMS=false
+ENABLE_JAMS=true
 ENABLE_JAVACALL_TEST=false
 ENABLE_DIO=true
 ENABLE_CELLULAR=true
@@ -164,6 +164,7 @@ then
 	fi
 fi
 
+DEFAULT_POOL_SIZE=1024*1680
 if [ "${BUILD_PCSL}" = "true" ]
 then
 	BUILDMODULE=${PCSL_DIR}
@@ -178,6 +179,7 @@ then
 			PCSL_PLATFORM=javacall_i386_vc \
 			PCSL_OUTPUT_DIR=${PCSL_OUTPUT_DIR} \
 			ENABLE_THUMB=${ENABLE_THUMB} \
+            DEFAULT_POOL_SIZE=${DEFAULT_POOL_SIZE} \
 			${DEBUG_OPTION}
 	fi
 	if [ $? != 0 ];then

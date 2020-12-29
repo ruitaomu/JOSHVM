@@ -23,7 +23,9 @@ public abstract class DefaultTlsClient
             CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
             CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,
             CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA,
+            */
             CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+            /*
             CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256,
             CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,
             CipherSuite.TLS_DHE_DSS_WITH_AES_128_GCM_SHA256,
@@ -33,8 +35,8 @@ public abstract class DefaultTlsClient
             CipherSuite.TLS_DHE_RSA_WITH_AES_128_CBC_SHA256,
             CipherSuite.TLS_DHE_RSA_WITH_AES_128_CBC_SHA,
             CipherSuite.TLS_RSA_WITH_AES_128_GCM_SHA256,
-			*/
-            CipherSuite.TLS_RSA_WITH_AES_128_CBC_SHA256,            
+            */
+            CipherSuite.TLS_RSA_WITH_AES_128_CBC_SHA256,
             CipherSuite.TLS_RSA_WITH_AES_128_CBC_SHA,
         };
     }
@@ -46,6 +48,10 @@ public abstract class DefaultTlsClient
 
         switch (keyExchangeAlgorithm)
         {
+        case KeyExchangeAlgorithm.ECDHE_ECDSA:
+        case KeyExchangeAlgorithm.ECDHE_RSA:
+            return createECDHEKeyExchange(keyExchangeAlgorithm);
+            
         case KeyExchangeAlgorithm.RSA:
             return createRSAKeyExchange();
 
@@ -57,6 +63,12 @@ public abstract class DefaultTlsClient
              */
             throw new TlsFatalAlert(AlertDescription.internal_error);
         }
+    }
+    
+    protected TlsKeyExchange createECDHEKeyExchange(int keyExchange)
+    {
+        return new TlsECDHEKeyExchange(keyExchange, supportedSignatureAlgorithms, namedCurves, clientECPointFormats,
+            serverECPointFormats);
     }
 
     protected TlsKeyExchange createRSAKeyExchange()

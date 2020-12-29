@@ -5,7 +5,9 @@ import java.io.IOException;
 import org.bouncycastle.crypto.BlockCipher;
 import org.bouncycastle.crypto.Digest;
 import org.bouncycastle.crypto.engines.AESEngine;
+import org.bouncycastle.crypto.modes.AEADBlockCipher;
 import org.bouncycastle.crypto.modes.CBCBlockCipher;
+import org.bouncycastle.crypto.modes.GCMBlockCipher;
 
 public class DefaultTlsCipherFactory
     extends AbstractTlsCipherFactory
@@ -19,6 +21,9 @@ public class DefaultTlsCipherFactory
             return createAESCipher(context, 16, macAlgorithm);
         case EncryptionAlgorithm.AES_256_CBC:
             return createAESCipher(context, 32, macAlgorithm);
+        case EncryptionAlgorithm.AES_128_GCM:
+            // NOTE: Ignores macAlgorithm
+            return createCipher_AES_GCM(context, 16, 16);
         case EncryptionAlgorithm.NULL:
             return createNullCipher(context, macAlgorithm);
         default:
@@ -31,6 +36,13 @@ public class DefaultTlsCipherFactory
     {
         return new TlsBlockCipher(context, createAESBlockCipher(), createAESBlockCipher(),
             createHMACDigest(macAlgorithm), createHMACDigest(macAlgorithm), cipherKeySize);
+    }
+    
+    protected TlsAEADCipher createCipher_AES_GCM(TlsContext context, int cipherKeySize, int macSize)
+    		throws IOException
+    {
+    	return new TlsAEADCipher(context, createAEADBlockCipher_AES_GCM(),
+    			createAEADBlockCipher_AES_GCM(), cipherKeySize, macSize);
     }
 
     protected TlsNullCipher createNullCipher(TlsContext context, int macAlgorithm)
@@ -48,6 +60,12 @@ public class DefaultTlsCipherFactory
     protected BlockCipher createAESBlockCipher()
     {
         return new CBCBlockCipher(createAESEngine());
+    }
+    
+    protected AEADBlockCipher createAEADBlockCipher_AES_GCM()
+    {
+        // TODO Consider allowing custom configuration of multiplier
+        return new GCMBlockCipher(createAESEngine());
     }
 
     protected Digest createHMACDigest(int macAlgorithm) throws IOException
