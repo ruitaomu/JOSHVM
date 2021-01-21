@@ -76,7 +76,7 @@ public class GPIOPinDevice implements GPIOPin {
 	}
 
 	public synchronized void open() throws java.io.IOException, DeviceNotFoundException, UnavailableDeviceException {
-		handle = open0(pin_config.getPinNumber(), pin_config.getDirection(), pin_config.getDriveMode(), pin_config.getTrigger());
+		handle = open0(pin_config.getControllerNumber(), pin_config.getPinNumber(), pin_config.getDirection(), pin_config.getDriveMode(), pin_config.getTrigger());
 		open = true;
 		hashkey.value = handle;
 		pin_table.put(hashkey, this);
@@ -339,7 +339,7 @@ public class GPIOPinDevice implements GPIOPin {
 		}
 	}
 
-	private native int open0(int pinNumber, int direction, int mode, int trigger);
+	private native int open0(int controllerNumber, int pinNumber, int direction, int mode, int trigger);
 	private native void close0(int handle);
 	private native boolean getValue0(int handle);
 	private native void setDirection0(int handle, int direction);

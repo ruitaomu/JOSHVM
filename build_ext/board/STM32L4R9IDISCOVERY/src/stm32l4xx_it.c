@@ -200,11 +200,6 @@ void SDMMC1_IRQHandler(void)
   HAL_SD_IRQHandler(&hsd_discovery);
 }
 
-void EXTI1_IRQHandler(void)
-{
-  HAL_GPIO_EXTI_IRQHandler(MFX_INT_PIN);
-}
-
 void LPUART1_IRQHandler(void)
 {
   javacall_serial_LPUART_IRQHandler();
@@ -216,6 +211,84 @@ void USART2_IRQHandler(void)
   //HAL_UART_IRQHandler(&UARTHandle);
   javacall_serial_USART2_IRQHandler();
 }
+
+void EXTI0_IRQHandler(void)
+{
+  if (IS_GPIO_PIN(JOSH_EXTI0_PIN)) {
+    HAL_GPIO_EXTI_IRQHandler(JOSH_EXTI0_PIN);
+  }
+}
+
+void EXTI1_IRQHandler(void)
+{
+  javacall_print("HAL_GPIO_EXTI1_Callback\n");
+  if (IS_GPIO_PIN(JOSH_EXTI1_PIN)) {
+    HAL_GPIO_EXTI_IRQHandler(JOSH_EXTI1_PIN);
+  }
+}
+
+void EXTI2_IRQHandler(void)
+{
+  if (IS_GPIO_PIN(JOSH_EXTI2_PIN)) {
+    HAL_GPIO_EXTI_IRQHandler(JOSH_EXTI2_PIN);
+  }
+}
+
+void EXTI3_IRQHandler(void)
+{
+  if (IS_GPIO_PIN(JOSH_EXTI3_PIN)) {
+    HAL_GPIO_EXTI_IRQHandler(JOSH_EXTI3_PIN);
+  }
+}
+
+void EXTI4_IRQHandler(void)
+{ 
+  if (IS_GPIO_PIN(JOSH_EXTI4_PIN)) {
+    HAL_GPIO_EXTI_IRQHandler(JOSH_EXTI4_PIN);
+  }
+}
+
+void EXTI9_5_IRQHandler(void)
+{
+  if (IS_GPIO_PIN(JOSH_EXTI5_PIN)) {
+    HAL_GPIO_EXTI_IRQHandler(JOSH_EXTI5_PIN);
+  }
+  if (IS_GPIO_PIN(JOSH_EXTI6_PIN)) {
+    HAL_GPIO_EXTI_IRQHandler(JOSH_EXTI6_PIN);
+  }
+  if (IS_GPIO_PIN(JOSH_EXTI7_PIN)) {
+    HAL_GPIO_EXTI_IRQHandler(JOSH_EXTI7_PIN);
+  }
+  if (IS_GPIO_PIN(JOSH_EXTI8_PIN)) {
+    HAL_GPIO_EXTI_IRQHandler(JOSH_EXTI8_PIN);
+  }
+  if (IS_GPIO_PIN(JOSH_EXTI9_PIN)) {
+    HAL_GPIO_EXTI_IRQHandler(JOSH_EXTI9_PIN);
+  }
+}
+
+void EXTI15_10_IRQHandler(void)
+{
+  if (IS_GPIO_PIN(JOSH_EXTI10_PIN)) {
+    HAL_GPIO_EXTI_IRQHandler(JOSH_EXTI10_PIN);
+  }
+  if (IS_GPIO_PIN(JOSH_EXTI11_PIN)) {
+    HAL_GPIO_EXTI_IRQHandler(JOSH_EXTI11_PIN);
+  }
+  if (IS_GPIO_PIN(JOSH_EXTI12_PIN)) {
+    HAL_GPIO_EXTI_IRQHandler(JOSH_EXTI12_PIN);
+  }
+  if (IS_GPIO_PIN(JOSH_EXTI13_PIN)) {
+    HAL_GPIO_EXTI_IRQHandler(JOSH_EXTI13_PIN);
+  }
+  if (IS_GPIO_PIN(JOSH_EXTI14_PIN)) {
+    HAL_GPIO_EXTI_IRQHandler(JOSH_EXTI14_PIN);
+  }
+  if (IS_GPIO_PIN(JOSH_EXTI15_PIN)) {
+    HAL_GPIO_EXTI_IRQHandler(JOSH_EXTI15_PIN);
+  }
+}
+
 
 /**
   * @brief  This function handles PPP interrupt request.

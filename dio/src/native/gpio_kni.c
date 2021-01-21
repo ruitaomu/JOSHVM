@@ -75,12 +75,13 @@ Java_com_joshvm_j2me_dio_gpio_GPIOPinDevice_open0()
 
 	javacall_handle h;
 	javacall_dio_result result;
-	jint pin, dir, mode, trigger;
-	pin = KNI_GetParameterAsInt(1);
-	dir = KNI_GetParameterAsInt(2);
-	mode = KNI_GetParameterAsInt(3);
-	trigger = KNI_GetParameterAsInt(4);
-	result = javacall_gpio_pin_open(-1, pin, (javacall_gpio_dir)dir,
+	jint port, pin, dir, mode, trigger;
+	port = KNI_GetParameterAsInt(1); 
+	pin = KNI_GetParameterAsInt(2);
+	dir = KNI_GetParameterAsInt(3);
+	mode = KNI_GetParameterAsInt(4);
+	trigger = KNI_GetParameterAsInt(5);
+	result = javacall_gpio_pin_open(port, pin, (javacall_gpio_dir)dir,
 											(javacall_gpio_mode)mode,
 											(javacall_gpio_trigger_mode)trigger,
 											JAVACALL_FALSE, JAVACALL_TRUE, &h);

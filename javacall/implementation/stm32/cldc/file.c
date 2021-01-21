@@ -87,6 +87,10 @@ static javacall_result ensure_SD_mounted() {
 }
 
 void javacall_file_set_SDstatus(int inserted) {
+    if (!isInitialized || inserted == isInserted) {
+        return;
+    }
+
     if (!inserted) {
         if (isMounted) {
             isMounted = 0;        
