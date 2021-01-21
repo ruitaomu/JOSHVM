@@ -24,11 +24,13 @@ extern "C" {
 #endif
     
 #include "javacall_dir.h"
-#include "javacall_logging.h"
-#include "stdlib.h"
-#include "string.h"
+#include "main.h"
 
-#define DEBUG_JAVACALL_DIR 1
+
+//#define DEBUG_JAVACALL_DIR 1
+#if DEBUG_JAVACALL_DIR
+#include <javacall_logging.h>
+#endif
 
 extern char* javacall_UNICODEsToUtf8(const javacall_utf16* fileName, int fileNameLen);
 
@@ -46,7 +48,36 @@ extern char* javacall_UNICODEsToUtf8(const javacall_utf16* fileName, int fileNam
  *         input 'string' cannot be found.
  */
 javacall_handle javacall_dir_open(const javacall_utf16* path, int pathLen) {
-    return (javacall_handle)NULL;
+#ifdef DEBUG_JAVACALL_DIR
+    javacall_logging_printf(JAVACALL_LOGGING_INFORMATION, JC_FILE, "javacall_dir_open:\n");
+#endif
+    char* szPath = javacall_UNICODEsToUtf8(path, pathLen);
+    if (!szPath) {
+        return NULL;
+    }
+
+#ifdef DEBUG_JAVACALL_DIR    
+   javacall_logging_printf(JAVACALL_LOGGING_INFORMATION, JC_FILE, szPath);
+   javacall_logging_printf(JAVACALL_LOGGING_INFORMATION, JC_FILE, "\n");
+#endif    
+
+    DIR* handle;
+    handle = javacall_malloc(sizeof(DIR));
+    if (!handle) {
+#ifdef DEBUG_JAVACALL_DIR    
+   javacall_logging_printf(JAVACALL_LOGGING_WARNING, JC_FILE, "Dir not open, not enough memory\n");
+#endif    
+        return JAVACALL_FAIL;
+    }
+
+    if (FR_OK == f_opendir(handle, szPath)) {
+#ifdef DEBUG_JAVACALL_DIR
+        javacall_logging_printf(JAVACALL_LOGGING_INFORMATION, JC_FILE, "return %x\n", handle);
+#endif
+        return (javacall_handle)handle;
+    } else {
+        return NULL;
+    }
 }
     
 /**
@@ -56,6 +87,10 @@ javacall_handle javacall_dir_open(const javacall_utf16* path, int pathLen) {
  *               javacall_dir_open 
  */
 void javacall_dir_close(javacall_handle handle) {
+    if (handle) {
+        f_closedir((DIR*)handle);
+        javacall_free(handle);
+    }
 }
     
 /**
@@ -76,7 +111,45 @@ void javacall_dir_close(javacall_handle handle) {
 javacall_utf16* javacall_dir_get_next(javacall_handle handle,
         int* /*OUT*/ outFilenameLength, javacall_bool* /*OUT*/ isHidden,
         javacall_bool* /*OUT*/ isDirectory) {
-	return NULL;
+    static javacall_utf16 name[JAVACALL_MAX_FILE_NAME_LENGTH+1];
+    
+    FILINFO d;
+    if (FR_OK == f_readdir((DIR*)handle, &d)) {
+        int len = strlen(d.fname);
+
+    	if (len >= JAVACALL_MAX_FILE_NAME_LENGTH - 1) {
+#ifdef DEBUG_JAVACALL_DIR
+        javacall_logging_printf(JAVACALL_LOGGING_INFORMATION, JC_FILE, 
+        	"javacall_dir_get_next: %s, len=%d, dir=%d\n", d.fname, len, (d.fattrib & AM_DIR)?1:0);
+#endif
+    	    return NULL;
+    	} else if (len == 0) {
+            return NULL;
+        } else {
+    	    if(d.fattrib & AM_DIR) {
+    	         name[len] = (javacall_utf16)'/';
+    	    	  *outFilenameLength = len+1;
+    	    	  name[len+1] = 0;
+				  *isDirectory = JAVACALL_TRUE;
+    	    } else {
+    	         *outFilenameLength = len;
+                name[len] = 0;
+				*isDirectory = JAVACALL_FALSE;
+    	    }
+
+			*isHidden = d.fattrib & AM_HID ? JAVACALL_TRUE:JAVACALL_FALSE;
+			
+           while (len--) {
+               name[len] = (javacall_utf16)d.fname[len] & 0xff;
+           }
+    	}
+    	return name;
+    } else {
+#ifdef DEBUG_JAVACALL_DIR
+       javacall_logging_printf(JAVACALL_LOGGING_INFORMATION, JC_FILE, "javacall_dir_get_next(%x) failed\n", handle);
+#endif
+       return NULL;
+    }
 }
     
 /**
@@ -100,7 +173,19 @@ javacall_int64 javacall_dir_get_free_space_for_java(void){
  */
 javacall_result javacall_dir_get_root_path(javacall_utf16* /* OUT */ rootPath,
                                            int* /* IN | OUT */ rootPathLen) {
-    return JAVACALL_FAIL;
+    static char* root = ".";
+    int i;
+    int len = strlen(root);
+    if (*rootPathLen < len) {
+    	return JAVACALL_FAIL;
+    }
+    
+    for (i = 0; i < len; i++) {
+    	rootPath[i] = (javacall_utf16)root[i];
+    }
+    *rootPathLen = i;
+    
+    return JAVACALL_OK;
 }  
 
 /**
@@ -129,6 +214,5 @@ javacall_bool javacall_dir_is_secure_storage(javacall_utf16* classPath, int path
 #ifdef __cplusplus
 }
 #endif
-
 
 

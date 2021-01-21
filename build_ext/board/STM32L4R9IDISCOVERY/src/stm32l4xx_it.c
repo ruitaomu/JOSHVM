@@ -205,6 +205,18 @@ void EXTI1_IRQHandler(void)
   HAL_GPIO_EXTI_IRQHandler(MFX_INT_PIN);
 }
 
+void LPUART1_IRQHandler(void)
+{
+  javacall_serial_LPUART_IRQHandler();
+}
+
+void USART2_IRQHandler(void)
+{
+  //HAL_NVIC_ClearPendingIRQ(USART2_IRQn);
+  //HAL_UART_IRQHandler(&UARTHandle);
+  javacall_serial_USART2_IRQHandler();
+}
+
 /**
   * @brief  This function handles PPP interrupt request.
   * @param  None

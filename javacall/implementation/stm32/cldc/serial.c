@@ -3,6 +3,8 @@
 #include "javacall_serial.h"
 
 #define BUFF_LENGTH 1024
+#define RXBUFF 0
+#define TXBUFF 1
 
 #define RING_BUFF_INVALID_HANDLE ((typeRing_buff_handle)-1)
 
@@ -14,15 +16,15 @@ typedef struct _typeRing_buff {
 } typeRing_buff, *typeRing_buff_handle;
 
 static UART_HandleTypeDef lpuart1, usart2;
-static typeRing_buff ring_uart1, ring_uart2;
+static typeRing_buff ring_uart1, ring_uart2, ring_tx_uart1, ring_tx_uart2;
 static unsigned char recv_byte[2];
 static int is_initialized_port[2] = {0};
 
-static typeRing_buff_handle get_uart_ring_buff(UART_HandleTypeDef* UartHandle) {
+static typeRing_buff_handle get_uart_ring_buff(UART_HandleTypeDef* UartHandle, int bufftype) {
 	if (UartHandle == &lpuart1) {
-		return &ring_uart1;
+		return bufftype==RXBUFF?&ring_uart1:&ring_tx_uart1;
 	} else if (UartHandle == &usart2) {
-		return &ring_uart2;
+		return bufftype==RXBUFF?&ring_uart2:&ring_tx_uart2;
 	} else {
 		return RING_BUFF_INVALID_HANDLE;
 	}
@@ -63,7 +65,7 @@ static int ring_buff_writebyte(typeRing_buff_handle buff, unsigned char b) {
 	if (!buff->isFull) {
 		buff->posWrite = posWrite;
 	}
-	
+	return 1;
 }
 
 static int ring_buff_readbyte(typeRing_buff_handle buff, unsigned char* b) {
@@ -84,7 +86,50 @@ static int ring_buff_readbyte(typeRing_buff_handle buff, unsigned char* b) {
 	return 1;
 }
 
-static UART_HandleTypeDef* MID_LPUART_Init(int port, int baudRate)
+static uint32_t get_uart_options_databits(unsigned int options) {
+	unsigned int opt_bps = options & (JAVACALL_SERIAL_BITS_PER_CHAR_7 | JAVACALL_SERIAL_BITS_PER_CHAR_8);
+	if (opt_bps == JAVACALL_SERIAL_BITS_PER_CHAR_7) {
+		return UART_WORDLENGTH_7B;
+	} else {
+		return UART_WORDLENGTH_8B;
+	}
+}
+
+static uint32_t get_uart_options_parity(unsigned int options) {
+	unsigned int opt_parity = options & (JAVACALL_SERIAL_ODD_PARITY | JAVACALL_SERIAL_EVEN_PARITY);
+	if (opt_parity == JAVACALL_SERIAL_EVEN_PARITY) {
+		return UART_PARITY_EVEN;
+	} else if (opt_parity == JAVACALL_SERIAL_ODD_PARITY) {
+		return UART_PARITY_ODD;
+	} else {
+		return UART_PARITY_NONE;
+	}
+}
+
+static uint32_t get_uart_options_stopbits(unsigned int options) {
+	unsigned int opt_stopbits = options & JAVACALL_SERIAL_STOP_BITS_2;
+	if (opt_stopbits != 0)	{
+		return UART_STOPBITS_2;
+	} else {
+		return UART_STOPBITS_1;
+	}
+}
+
+static uint32_t get_uart_options_flowctrl(unsigned int options) {
+	unsigned int opt_flowcontrol = options & (JAVACALL_SERIAL_AUTO_RTS | JAVACALL_SERIAL_AUTO_CTS);
+	if (opt_flowcontrol == JAVACALL_SERIAL_AUTO_RTS) {
+		return UART_HWCONTROL_RTS;
+	} else if (opt_flowcontrol == JAVACALL_SERIAL_AUTO_CTS) {
+		return UART_HWCONTROL_CTS;
+	} else if (opt_flowcontrol == 0) {
+		return UART_HWCONTROL_NONE;
+	} else {
+		return  UART_HWCONTROL_RTS_CTS;
+	}
+}
+
+
+static UART_HandleTypeDef* MID_LPUART_Init(int port, int baudRate, unsigned int options)
 {
 	UART_HandleTypeDef* uart;
 	USART_TypeDef* instance;
@@ -108,10 +153,10 @@ static UART_HandleTypeDef* MID_LPUART_Init(int port, int baudRate)
 	
 	uart->Instance = instance;
 	uart->Init.BaudRate = baudRate;
-	uart->Init.Parity = UART_PARITY_NONE;
-	uart->Init.WordLength = UART_WORDLENGTH_8B;
-	uart->Init.StopBits = UART_STOPBITS_1;
-	uart->Init.HwFlowCtl = UART_HWCONTROL_NONE;
+	uart->Init.Parity = get_uart_options_parity(options);
+	uart->Init.WordLength = get_uart_options_databits(options);
+	uart->Init.StopBits = get_uart_options_stopbits(options);
+	uart->Init.HwFlowCtl = get_uart_options_flowctrl(options);
 	uart->Init.Mode = UART_MODE_TX_RX;
 	uart->Init.OverSampling = UART_OVERSAMPLING_16;
 	
@@ -119,36 +164,10 @@ static UART_HandleTypeDef* MID_LPUART_Init(int port, int baudRate)
 		return NULL;
 	}
 
-	ring_buff_init(get_uart_ring_buff(uart));
+	ring_buff_init(get_uart_ring_buff(uart, RXBUFF));
+	ring_buff_init(get_uart_ring_buff(uart, TXBUFF));
 	
 	return uart;
-}
-
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *UartHandle)  
-{
-	int port;
-	
-	if (UartHandle == &lpuart1) {
-		port = 0;
-	} else if (UartHandle == &usart2) {
-		port = 1;
-	} else {
-		return;
-	}
-
-	typeRing_buff_handle hRingBuf = get_uart_ring_buff(UartHandle);
-	if (hRingBuf == RING_BUFF_INVALID_HANDLE) {
-		return;
-	}
-
-	int flag = ring_buff_is_empty(hRingBuf);
-	ring_buff_writebyte(hRingBuf, recv_byte[port]);
-	HAL_UART_Receive_IT(UartHandle, &(recv_byte[port]), 1);
-	if (flag) {
-		javanotify_serial_event(JAVACALL_EVENT_SERIAL_RECEIVE, 	UartHandle, JAVACALL_OK);
-	}
-
-	return;
 }
 
 /**
@@ -207,7 +226,7 @@ comm_serial_open(const char *devName, int baudRate, unsigned int options)
 		}
 	}
 	
-	handle = MID_LPUART_Init(port, baudRate);
+	handle = MID_LPUART_Init(port, baudRate, options);
 	if (handle != NULL) {
 		is_initialized_port[port] = 1;
 		HAL_UART_Receive_IT(handle, &(recv_byte[port]), 1);      
@@ -217,12 +236,6 @@ comm_serial_open(const char *devName, int baudRate, unsigned int options)
 	}
 	return 0;
 }
-
-static void
-comm_serial_configurePort(javacall_handle hPort, int baudRate, unsigned int options) 
-{
-}
-
 
 /**
  * Update the baudRate of an open serial port
@@ -235,6 +248,7 @@ comm_serial_configurePort(javacall_handle hPort, int baudRate, unsigned int opti
 javacall_result
 javacall_serial_set_baudRate(javacall_handle hPort, int baudRate)
 {
+	//Do nothing
 	return JAVACALL_OK;
 }
 
@@ -249,6 +263,11 @@ javacall_serial_set_baudRate(javacall_handle hPort, int baudRate)
 javacall_result /*OPTIONAL*/
 javacall_serial_get_baudRate(javacall_handle hPort, int *baudRate)
 {
+	if (!hPort) {
+		return JAVACALL_FAIL;
+	}
+
+	*baudRate = ((UART_HandleTypeDef*)hPort)->Init.BaudRate;
 	return JAVACALL_OK;
 }
 
@@ -266,9 +285,9 @@ javacall_serial_get_baudRate(javacall_handle hPort, int *baudRate)
  * @return <tt>JAVACALL_OK</tt> on success, 
  *         <tt>JAVACALL_FAIL</tt> on error
  */
-javacall_result /*OPTIONAL*/ javacall_serial_configure(javacall_handle pHandle, int baudRate, int options) {
-    comm_serial_configurePort(pHandle, baudRate, options);
-	return JAVACALL_OK;
+javacall_result /*OPTIONAL*/ javacall_serial_configure(javacall_handle hPort, int baudRate, int options) {
+	//Do nothing in fact
+    return javacall_serial_set_baudRate(hPort, baudRate);
 }
 
 /**
@@ -293,7 +312,7 @@ comm_serial_read(javacall_handle hPort, unsigned char* buffer, int size, int *by
 		return JAVACALL_OK;
 	}
 	
-	typeRing_buff_handle hRingBuf = get_uart_ring_buff(hPort);
+	typeRing_buff_handle hRingBuf = get_uart_ring_buff(hPort, RXBUFF);
 
 	if (hRingBuf == RING_BUFF_INVALID_HANDLE) {
 		return JAVACALL_FAIL;
@@ -309,11 +328,33 @@ comm_serial_read(javacall_handle hPort, unsigned char* buffer, int size, int *by
 		}
 	} while (--size);
 
+
 	*byteRead = size2read - size;
 
 	return JAVACALL_OK;
 } 
 
+static javacall_result
+comm_serial_write_byte(javacall_handle hPort)
+{
+	UART_HandleTypeDef* hUART = (UART_HandleTypeDef*)hPort;
+	typeRing_buff_handle hRingBuf = get_uart_ring_buff(hUART, TXBUFF);
+	static unsigned char byteToSend;
+
+	if (hUART->gState != HAL_UART_STATE_READY) {
+		if (hUART->gState == HAL_UART_STATE_BUSY_TX) {
+			return JAVACALL_WOULD_BLOCK;
+		} else {
+			return JAVACALL_FAIL;
+		}
+	}
+
+	if (ring_buff_readbyte(hRingBuf, &byteToSend) == 1) {
+		HAL_UART_Transmit_IT(hUART,&byteToSend,1);
+	}
+	
+	return JAVACALL_OK;
+} 
 
 /**
  * Writes a specified number of bytes to serial link, 
@@ -323,12 +364,26 @@ comm_serial_read(javacall_handle hPort, unsigned char* buffer, int size, int *by
  * @param bytesWrite the point to the number of bytes actually written
  */
 static javacall_result
-comm_serial_write(javacall_handle hPort, unsigned char* buffer, int size, int* bytesWrite)
+comm_serial_write(javacall_handle hPort, unsigned char* buffer, int size, int* bytesWritten)
 {
-	HAL_UART_Transmit((UART_HandleTypeDef*)hPort,buffer,size,0xffff);
-	*bytesWrite = size;
-	return JAVACALL_OK;
-} 
+	int i;
+	for (i = 0; i < size; i++) {
+		if (ring_buff_writebyte(get_uart_ring_buff(hPort, TXBUFF), buffer[i]) == 0) break;
+	}
+
+	if (i == 0) {
+		//TX buffer is full, nothing put into the ring buffer
+		return JAVACALL_WOULD_BLOCK;
+	}
+	
+    if (JAVACALL_FAIL != comm_serial_write_byte(hPort)) {
+		*bytesWritten = i;
+		return JAVACALL_OK;
+	} else {
+		return JAVACALL_FAIL;
+	}
+}
+
 
 /**
  * Closes serial link 
@@ -496,9 +551,9 @@ javacall_serial_read_finish(javacall_handle hPort, unsigned char* buffer, int si
  */
 javacall_result /*OPTIONAL*/
 javacall_serial_write_start(javacall_handle hPort, unsigned char* buffer, int size, int *bytesWritten, void **pContext)
-{ 
+{
 	*pContext = NULL;
-    return comm_serial_write(hPort, buffer, size, bytesWritten);    
+    return comm_serial_write(hPort, buffer, size, bytesWritten);   
 }
 
 /**
@@ -515,6 +570,56 @@ javacall_serial_write_start(javacall_handle hPort, unsigned char* buffer, int si
 javacall_result /*OPTIONAL*/
 javacall_serial_write_finish(javacall_handle hPort, unsigned char* buffer, int size, int *bytesWritten, void *context)
 {
-    return JAVACALL_FAIL;
+    return comm_serial_write(hPort, buffer, size, bytesWritten);     
 }
 
+/**************************
+ * Interrupt handlers
+ * 
+ **************************/
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *UartHandle)  
+{
+	int port;
+	
+	if (UartHandle == &lpuart1) {
+		port = 0;
+	} else if (UartHandle == &usart2) {
+		port = 1;
+	} else {
+		return;
+	}
+
+	typeRing_buff_handle hRingBuf = get_uart_ring_buff(UartHandle, RXBUFF);
+	if (hRingBuf == RING_BUFF_INVALID_HANDLE) {
+		return;
+	}
+
+	int flag = ring_buff_is_empty(hRingBuf);
+	ring_buff_writebyte(hRingBuf, recv_byte[port]);
+	HAL_UART_Receive_IT(UartHandle, &(recv_byte[port]), 1);
+	if (flag) {
+		javanotify_serial_event(JAVACALL_EVENT_SERIAL_RECEIVE, 	UartHandle, JAVACALL_OK);
+	}
+
+	return;
+}
+
+void HAL_UART_TxCpltCallback(UART_HandleTypeDef *UartHandle) 
+{
+	if (JAVACALL_FAIL == comm_serial_write_byte((javacall_handle)UartHandle)) {
+		javanotify_serial_event(JAVACALL_EVENT_SERIAL_WRITE, UartHandle, JAVACALL_FAIL);
+	} else {
+		if (ring_buff_is_empty(get_uart_ring_buff(UartHandle, TXBUFF))) {
+			javanotify_serial_event(JAVACALL_EVENT_SERIAL_WRITE, UartHandle, JAVACALL_OK);
+		}
+	}
+}
+
+void javacall_serial_LPUART_IRQHandler() {
+	HAL_NVIC_ClearPendingIRQ(LPUART1_IRQn);
+	HAL_UART_IRQHandler(&lpuart1);
+}
+
+void javacall_serial_USART2_IRQHandler() {
+	HAL_UART_IRQHandler(&usart2);
+}
