@@ -350,7 +350,7 @@ static void closeHandles(jobject objectHandle, int flags)
         {
             if (JAVACALL_OK != javacall_file_close(writeHandle))
             {
-                KNI_ThrowNew(KNINullPointerException, EXCEPTION_MSG(fcCloseFileFailed));
+                KNI_ThrowNew(KNIIOException, EXCEPTION_MSG(fcCloseFileFailed));
             }
             /* anyway reset the write handle */
             KNI_SetIntField(objectHandle, writeHandleID, (jint)NULL);
@@ -396,19 +396,19 @@ Java_com_sun_cldc_io_j2me_file_DefaultFileHandler_create()
         } else {
             if (JAVACALL_OK == javacall_file_exist(fileName_data, fileName_len))
             {
-                KNI_ThrowNew(KNINullPointerException, EXCEPTION_MSG(fcFileExists));
+                KNI_ThrowNew(KNIIOException, EXCEPTION_MSG(fcFileExists));
             }
             else
             {
                 if (JAVACALL_OK != javacall_file_open(fileName_data, fileName_len, flags, &handle))
                 {
-                    KNI_ThrowNew(KNINullPointerException, EXCEPTION_MSG(fcCreateFileFailed));
+                    KNI_ThrowNew(KNIIOException, EXCEPTION_MSG(fcCreateFileFailed));
                 }
                 else
                 {
                     if (JAVACALL_OK != javacall_file_close(handle))
                     {
-                        KNI_ThrowNew(KNINullPointerException, EXCEPTION_MSG(fcCloseFileFailed));
+                        KNI_ThrowNew(KNIIOException, EXCEPTION_MSG(fcCloseFileFailed));
                     }
                 }
             }
@@ -455,7 +455,7 @@ Java_com_sun_cldc_io_j2me_file_DefaultFileHandler_delete()
             {
                 if (JAVACALL_OK != javacall_file_delete(fileName_data, fileName_len))
                 {
-                    KNI_ThrowNew(KNINullPointerException, EXCEPTION_MSG(fcDeleteFileFailed));
+                    KNI_ThrowNew(KNIIOException, EXCEPTION_MSG(fcDeleteFileFailed));
                 }
             }
             else
@@ -464,12 +464,12 @@ Java_com_sun_cldc_io_j2me_file_DefaultFileHandler_delete()
                 {
                     if (JAVACALL_OK != javacall_fileconnection_delete_dir(fileName_data, fileName_len))
                     {
-                        KNI_ThrowNew(KNINullPointerException, EXCEPTION_MSG(fcDeleteDirFailed));
+                        KNI_ThrowNew(KNIIOException, EXCEPTION_MSG(fcDeleteDirFailed));
                     }
                 }
                 else
                 {
-                    KNI_ThrowNew(KNINullPointerException, EXCEPTION_MSG(fcFileNotExists));
+                    KNI_ThrowNew(KNIIOException, EXCEPTION_MSG(fcFileNotExists));
                 }
             }
         }
@@ -547,7 +547,7 @@ Java_com_sun_cldc_io_j2me_file_DefaultFileHandler_rename0()
                 {
                     pcsl_string_free(newFileName);
                     pcsl_mem_free(newFileName);
-                    KNI_ThrowNew(KNINullPointerException, EXCEPTION_MSG(fcFileExists));
+                    KNI_ThrowNew(KNIIOException, EXCEPTION_MSG(fcFileExists));
                 }
                 else
                 {
@@ -566,7 +566,7 @@ Java_com_sun_cldc_io_j2me_file_DefaultFileHandler_rename0()
                     {
                         pcsl_string_free(newFileName);
                         pcsl_mem_free(newFileName);
-                        KNI_ThrowNew(KNINullPointerException, EXCEPTION_MSG(fcRenameFileFailed));
+                        KNI_ThrowNew(KNIIOException, EXCEPTION_MSG(fcRenameFileFailed));
                     }
                     else
                     {
@@ -637,21 +637,21 @@ Java_com_sun_cldc_io_j2me_file_DefaultFileHandler_truncate()
                     }
 
                     if (JAVACALL_OK != javacall_file_close(handle)) {
-                        KNI_ThrowNew(KNINullPointerException, EXCEPTION_MSG(fcCloseFileFailed));
+                        KNI_ThrowNew(KNIIOException, EXCEPTION_MSG(fcCloseFileFailed));
                     } else {
                         if (JAVACALL_OK != truncStatus) {
-                            KNI_ThrowNew(KNINullPointerException, EXCEPTION_MSG(fcTruncFileFailed));
+                            KNI_ThrowNew(KNIIOException, EXCEPTION_MSG(fcTruncFileFailed));
                         }
                     }
                 }
                 else
                 {
-                    KNI_ThrowNew(KNINullPointerException, EXCEPTION_MSG(fcOpenFileFailed));
+                    KNI_ThrowNew(KNIIOException, EXCEPTION_MSG(fcOpenFileFailed));
                 }
             }
             else
             {
-                KNI_ThrowNew(KNINullPointerException, EXCEPTION_MSG(fcFileNotExists));
+                KNI_ThrowNew(KNIIOException, EXCEPTION_MSG(fcFileNotExists));
             }
         }
         RELEASE_PCSL_STRING_DATA_AND_LENGTH
@@ -791,7 +791,7 @@ Java_com_sun_cldc_io_j2me_file_DefaultFileHandler_mkdir()
              */
             if (JAVACALL_OK != javacall_fileconnection_create_dir(fileName_data, fileName_len))
             {
-                KNI_ThrowNew(KNINullPointerException, EXCEPTION_MSG(fcCreateDirFailed));
+                KNI_ThrowNew(KNIIOException, EXCEPTION_MSG(fcCreateDirFailed));
             }
         }
         RELEASE_PCSL_STRING_DATA_AND_LENGTH
@@ -971,7 +971,7 @@ Java_com_sun_cldc_io_j2me_file_DefaultFileHandler_setReadable()
             status = javacall_fileconnection_set_readable(fileName_data, newvalue);
             if (JAVACALL_OK != status)
             {
-                KNI_ThrowNew(KNINullPointerException, EXCEPTION_MSG(fcSetAttrFailed));
+                KNI_ThrowNew(KNIIOException, EXCEPTION_MSG(fcSetAttrFailed));
             }
         }
         RELEASE_PCSL_STRING_DATA_AND_LENGTH
@@ -1061,7 +1061,7 @@ Java_com_sun_cldc_io_j2me_file_DefaultFileHandler_setWritable()
             status = javacall_fileconnection_set_writable(fileName_data, newvalue);
             if (JAVACALL_OK != status)
             {
-                KNI_ThrowNew(KNINullPointerException, EXCEPTION_MSG(fcSetAttrFailed));
+                KNI_ThrowNew(KNIIOException, EXCEPTION_MSG(fcSetAttrFailed));
             }
         }
         RELEASE_PCSL_STRING_DATA_AND_LENGTH
@@ -1153,7 +1153,7 @@ Java_com_sun_cldc_io_j2me_file_DefaultFileHandler_setHidden0()
             status = javacall_fileconnection_set_hidden(fileName_data, newvalue);
             if (JAVACALL_OK != status)
             {
-                KNI_ThrowNew(KNINullPointerException, EXCEPTION_MSG(fcSetAttrFailed));
+                KNI_ThrowNew(KNIIOException, EXCEPTION_MSG(fcSetAttrFailed));
             }
         }
         RELEASE_PCSL_STRING_DATA_AND_LENGTH
@@ -1536,14 +1536,14 @@ Java_com_sun_cldc_io_j2me_file_DefaultFileHandler_openForRead()
             } else {
                 if(JAVACALL_OK == javacall_fileconnection_dir_exists(fileName_data, fileName_len))
                 {
-                    KNI_ThrowNew(KNINullPointerException, EXCEPTION_MSG(fcFileIsDirectory));
+                    KNI_ThrowNew(KNIIOException, EXCEPTION_MSG(fcFileIsDirectory));
                 }
                 else
                 {
                     if (JAVACALL_OK != javacall_file_open(fileName_data, fileName_len,
                             flags, &handle))
                     {
-                        KNI_ThrowNew(KNINullPointerException, EXCEPTION_MSG(fcOpenFileFailed));
+                        KNI_ThrowNew(KNIIOException, EXCEPTION_MSG(fcOpenFileFailed));
                     }
                     else
                     {
@@ -1604,14 +1604,14 @@ Java_com_sun_cldc_io_j2me_file_DefaultFileHandler_openForWrite()
             } else {
                 if(JAVACALL_OK == javacall_fileconnection_dir_exists(fileName_data, fileName_len))
                 {
-                    KNI_ThrowNew(KNINullPointerException, EXCEPTION_MSG(fcFileIsDirectory));
+                    KNI_ThrowNew(KNIIOException, EXCEPTION_MSG(fcFileIsDirectory));
                 }
                 else
                 {
                     if (JAVACALL_OK != javacall_file_open(fileName_data, fileName_len,
                             flags, &handle))
                     {
-                        KNI_ThrowNew(KNINullPointerException, EXCEPTION_MSG(fcOpenFileFailed));
+                        KNI_ThrowNew(KNIIOException, EXCEPTION_MSG(fcOpenFileFailed));
                     }
                     else
                     {
@@ -1674,7 +1674,7 @@ Java_com_sun_cldc_io_j2me_file_DefaultFileHandler_read()
             res = javacall_file_read(handle, (unsigned char *)data, length);
             if (res < 0)
             {
-                KNI_ThrowNew(KNINullPointerException, EXCEPTION_MSG(fcFileReadFailed));
+                KNI_ThrowNew(KNIIOException, EXCEPTION_MSG(fcFileReadFailed));
             }
             else
             {
@@ -1738,7 +1738,7 @@ Java_com_sun_cldc_io_j2me_file_DefaultFileHandler_write()
             res = javacall_file_write(handle, (unsigned char *)data, length);
             if (res < 0)
             {
-                KNI_ThrowNew(KNINullPointerException, EXCEPTION_MSG(fcFileWriteFailed));
+                KNI_ThrowNew(KNIIOException, EXCEPTION_MSG(fcFileWriteFailed));
             }
 
             pcsl_mem_free(data);
@@ -1782,7 +1782,7 @@ Java_com_sun_cldc_io_j2me_file_DefaultFileHandler_positionForWrite()
         if ((jlong)(-1) == size)
         {
             DEBUG_PRINT("File.positionForWrite() << Error KNINullPointerException\n");
-            KNI_ThrowNew(KNINullPointerException, EXCEPTION_MSG(fcFileSizeFailed));
+            KNI_ThrowNew(KNIIOException, EXCEPTION_MSG(fcFileSizeFailed));
         }
         else
         {
@@ -1793,7 +1793,7 @@ Java_com_sun_cldc_io_j2me_file_DefaultFileHandler_positionForWrite()
             seek = javacall_file_seek(handle, offset, JAVACALL_FILE_SEEK_SET);
             if (seek != offset)
             {
-                KNI_ThrowNew(KNINullPointerException, EXCEPTION_MSG(fcSeekFailed));
+                KNI_ThrowNew(KNIIOException, EXCEPTION_MSG(fcSeekFailed));
             }
         }
     }
@@ -1831,7 +1831,7 @@ Java_com_sun_cldc_io_j2me_file_DefaultFileHandler_flush()
         if (JAVACALL_OK != javacall_file_flush(handle))
         {
             DEBUG_PRINT("File.flush() << Error fcCommitFileFailed\n");
-            KNI_ThrowNew(KNINullPointerException, EXCEPTION_MSG(fcCommitFileFailed));
+            KNI_ThrowNew(KNIIOException, EXCEPTION_MSG(fcCommitFileFailed));
         }
     }
 
