@@ -280,7 +280,7 @@ public class Protocol extends BufferedConnectionAdapter
         }
 
         // blocking is handled at the Java layer so other Java threads can run
-
+        /*
         String port = null;
         String ports = System.getProperty("microedition.commports");
         boolean found = false;
@@ -303,7 +303,7 @@ public class Protocol extends BufferedConnectionAdapter
                     " port not found!");
 			}
         }
-
+        */
         handle = native_openByName(deviceName, baud,
             bbc|stop|parity|rts|cts);
 

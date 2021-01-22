@@ -8,6 +8,14 @@
 
 #define RING_BUFF_INVALID_HANDLE ((typeRing_buff_handle)-1)
 
+#define PORT_HANDLE_CONSOLE usart2
+#define PORT_INST_CONSOLE USART2
+#define PORT_NUMBER_CONSOLE 0
+
+#define PORT_HANDLE_USER1 lpuart1
+#define PORT_INST_USER1 LPUART1
+#define PORT_NUMBER_USER1 1
+
 typedef struct _typeRing_buff {
 	unsigned int posRead;
 	unsigned int posWrite;
@@ -21,9 +29,9 @@ static unsigned char recv_byte[2];
 static int is_initialized_port[2] = {0};
 
 static typeRing_buff_handle get_uart_ring_buff(UART_HandleTypeDef* UartHandle, int bufftype) {
-	if (UartHandle == &lpuart1) {
+	if (UartHandle == &PORT_HANDLE_CONSOLE) {
 		return bufftype==RXBUFF?&ring_uart1:&ring_tx_uart1;
-	} else if (UartHandle == &usart2) {
+	} else if (UartHandle == &PORT_HANDLE_USER1) {
 		return bufftype==RXBUFF?&ring_uart2:&ring_tx_uart2;
 	} else {
 		return RING_BUFF_INVALID_HANDLE;
@@ -128,22 +136,21 @@ static uint32_t get_uart_options_flowctrl(unsigned int options) {
 	}
 }
 
-
-static UART_HandleTypeDef* MID_LPUART_Init(int port, int baudRate, unsigned int options)
+static UART_HandleTypeDef* MID_UART_Init(int port, int baudRate, unsigned int options)
 {
 	UART_HandleTypeDef* uart;
 	USART_TypeDef* instance;
 
 	switch (port) {
-		case 0:
-			instance = LPUART1;
-			uart = &lpuart1;
-			__HAL_RCC_LPUART1_CLK_ENABLE();
+		case PORT_NUMBER_CONSOLE:
+			instance = PORT_INST_CONSOLE;
+			uart = &PORT_HANDLE_CONSOLE;
+			//__HAL_RCC_USART2_CLK_ENABLE();
 			break;
-		case 1:
-			instance = USART2;
-			uart = &usart2;
-			__HAL_RCC_USART2_CLK_ENABLE();
+		case PORT_NUMBER_USER1:
+			instance = PORT_INST_USER1;
+			uart = &PORT_HANDLE_USER1;
+			//__HAL_RCC_LPUART1_CLK_ENABLE();
 			break;
 		default:
 			return NULL;
@@ -158,9 +165,12 @@ static UART_HandleTypeDef* MID_LPUART_Init(int port, int baudRate, unsigned int 
 	uart->Init.StopBits = get_uart_options_stopbits(options);
 	uart->Init.HwFlowCtl = get_uart_options_flowctrl(options);
 	uart->Init.Mode = UART_MODE_TX_RX;
-	uart->Init.OverSampling = UART_OVERSAMPLING_16;
+	uart->Init.OverSampling = UART_OVERSAMPLING_8;
 	
-	if((HAL_UART_Init(uart) != HAL_OK)){
+	HAL_StatusTypeDef result = HAL_UART_Init(uart);
+
+	if(result != HAL_OK){
+		javacall_printf("port %d HAL_UART_Init fail, reason code %d, error code %d\n", port, result, uart->ErrorCode);
 		return NULL;
 	}
 
@@ -211,27 +221,30 @@ comm_serial_open(const char *devName, int baudRate, unsigned int options)
 	UART_HandleTypeDef* handle;
 	
 	if (!strcmp(devName, "COM0")) {
-		port = 0;
+		port = PORT_NUMBER_CONSOLE;
 	} else if (!strcmp(devName, "COM1")) {
-		port = 1;
+		javacall_printf("comm_serial_open(%s, %d, %d)\n", devName, baudRate, options);
+		port = PORT_NUMBER_USER1;
 	} else {
 		return (javacall_handle)-1;
 	}
 
 	if (is_initialized_port[port]) {
-		if (port == 0) {
-			return &lpuart1;
+		if (port == PORT_NUMBER_CONSOLE) {
+			return &PORT_HANDLE_CONSOLE;
 		} else {
+			javacall_printf("port %d has been initialized\n", port);
 			return (javacall_handle)-1;
 		}
 	}
 	
-	handle = MID_LPUART_Init(port, baudRate, options);
+	handle = MID_UART_Init(port, baudRate, options);
 	if (handle != NULL) {
 		is_initialized_port[port] = 1;
 		HAL_UART_Receive_IT(handle, &(recv_byte[port]), 1);      
 		return (javacall_handle)handle;
 	} else {
+		javacall_printf("port %d fail to initialize\n", port);
 		return (javacall_handle)-1;
 	}
 	return 0;
@@ -400,10 +413,11 @@ comm_serial_close(javacall_handle hPort)
 {
 	int port;
 	
-	if (hPort == &lpuart1) {
+	if (hPort == &PORT_HANDLE_CONSOLE) {
 		return JAVACALL_OK; //Never really closed
-	} else if (hPort == &usart2) {
-		port = 1;
+	} else if (hPort == &PORT_HANDLE_USER1) {
+		port = PORT_NUMBER_USER1;
+		javacall_printf("comm_serial_close %d\n", port);
 	} else {
 		return JAVACALL_FAIL; //Bad handle
 	}
@@ -581,10 +595,10 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *UartHandle)
 {
 	int port;
 	
-	if (UartHandle == &lpuart1) {
-		port = 0;
-	} else if (UartHandle == &usart2) {
-		port = 1;
+	if (UartHandle == &PORT_HANDLE_CONSOLE) {
+		port = PORT_NUMBER_CONSOLE;
+	} else if (UartHandle == &PORT_HANDLE_USER1) {
+		port = PORT_NUMBER_USER1;
 	} else {
 		return;
 	}
