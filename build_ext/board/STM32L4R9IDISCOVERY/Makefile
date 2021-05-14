@@ -1,6 +1,6 @@
 # put your *.o targets here, make should handle the rest!
 
-SRCS = joshmain.c stm32l4xx_hal_msp.c stm32l4xx_it.c system_stm32l4xx.c syscalls.c sysmem.c
+SRCS = joshmain.c stm32l4xx_hal_msp.c stm32l4xx_it.c system_stm32l4xx.c syscalls.c sysmem.c sd_diskio.c
 
 # all the files will be generated with this name (main.elf, main.bin, main.hex, etc)
 
@@ -32,14 +32,16 @@ export CFLAGS=-O2 -fno-common -mcpu=cortex-m4 -mthumb
 
 ###################################################
 
-vpath %.c $(ROOT)/src  $(STM32_DRV_SRC_PATH)/Drivers/Src $(STM32_DRV_SRC_PATH)/Drivers/STM32L4xx_HAL_Driver/Src $(STM32_DRV_SRC_PATH)/Drivers/BSP/STM32L4R9I-Discovery $(STM32_DRV_SRC_PATH)/Drivers/BSP/Components/mfxstm32l152
+vpath %.c $(ROOT)/src  $(STM32_DRV_SRC_PATH)/Drivers/Src $(STM32_DRV_SRC_PATH)/Drivers/STM32L4xx_HAL_Driver/Src $(STM32_DRV_SRC_PATH)/Drivers/BSP/STM32L4R9I-Discovery $(STM32_DRV_SRC_PATH)/Drivers/BSP/Components/mfxstm32l152 $(STM32_DRV_SRC_PATH)/Middlewares/Third_Party/FatFs/src $(STM32_DRV_SRC_PATH)/Middlewares/Third_Party/FatFs/src/option
 
 CFLAGS += -I$(ROOT)/include -I$(STM32_DRV_SRC_PATH)/Drivers/CMSIS/Device/ST/STM32L4xx/Include -I$(STM32_DRV_SRC_PATH)/Drivers/STM32L4xx_HAL_Driver/Inc -I$(STM32_DRV_SRC_PATH)/Drivers/CMSIS/Include -I$(STM32_DRV_SRC_PATH)/Drivers/BSP/STM32L4R9I-Discovery/ -I$(STM32_DRV_SRC_PATH)/Middlewares/Third_Party/FatFs/src
-CFLAGS += -DSTM32L4R9xx
+CFLAGS += -DSTM32L4R9xx -DUSE_HAL_DRIVER
 
 SRCS += $(ROOT)/src/startup_stm32l4r9aiix.s # add startup file to build
 
 HAL_SRCS = stm32l4xx_hal.c \
+    stm32l4xx_hal_adc.c \
+    stm32l4xx_hal_adc_ex.c \
 	stm32l4xx_hal_rcc.c \
 	stm32l4xx_hal_rcc_ex.c \
 	stm32l4xx_hal_cortex.c \
@@ -51,6 +53,9 @@ HAL_SRCS = stm32l4xx_hal.c \
 	stm32l4xx_hal_usart.c \
     stm32l4xx_hal_usart_ex.c \
 	stm32l4xx_hal_dma.c \
+    stm32l4xx_hal_dma_ex.c \
+    stm32l4xx_hal_flash.c \
+    stm32l4xx_hal_flash_ex.c \
 	stm32l4xx_hal_sd.c \
 	stm32l4xx_hal_sd_ex.c \
 	stm32l4xx_hal_i2c.c \
@@ -59,7 +64,12 @@ HAL_SRCS = stm32l4xx_hal.c \
 	stm32l4r9i_discovery_io.c \
 	stm32l4r9i_discovery_sd.c \
 	mfxstm32l152.c \
-	stm32l4r9i_discovery.c
+	stm32l4r9i_discovery.c \
+    diskio.c \
+    ff.c \
+    ff_gen_drv.c \
+    syscall.c \
+    unicode.c
 
 #OBJS = $(SRCS:.c=.o)
 

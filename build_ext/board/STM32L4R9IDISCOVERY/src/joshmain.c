@@ -119,6 +119,8 @@ int main(void)
   //MX_USB_OTG_FS_PCD_Init();
 
   /* USER CODE BEGIN 2 */
+  //char* p = malloc(1);
+  //javacall_printf("User C Heap pointer: %p\n", p);
   JavaTask();
   /* USER CODE END 2 */
 
@@ -770,9 +772,46 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Alternate = GPIO_AF6_DFSDM1;
   HAL_GPIO_Init(DFDATIN1_GPIO_Port, &GPIO_InitStruct);
 
+  HAL_NVIC_SetPriority(EXTI0_IRQn, 0, 0); 
+  HAL_NVIC_EnableIRQ(EXTI0_IRQn);
+
+  HAL_NVIC_SetPriority(EXTI1_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI1_IRQn);
+
+  HAL_NVIC_SetPriority(EXTI2_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI2_IRQn);
+
+  HAL_NVIC_SetPriority(EXTI3_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI3_IRQn);
+
+  HAL_NVIC_SetPriority(EXTI4_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI4_IRQn);
+
+  HAL_NVIC_SetPriority(EXTI9_5_IRQn, 0, 0); 
+  HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
+
+  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0); 
+  HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
 }
 
 /* USER CODE BEGIN 4 */
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+  if(GPIO_Pin == MFX_INT_PIN)
+  {
+    if(BSP_SD_IsDetected())
+    {
+      javacall_file_set_SDstatus(1);
+
+    }
+    else
+    {
+      javacall_file_set_SDstatus(0);
+    }
+  }
+
+  javacall_gpio_incoming_event(GPIO_Pin);
+}
 
 /* USER CODE END 4 */
 

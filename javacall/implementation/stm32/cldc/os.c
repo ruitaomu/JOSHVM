@@ -40,6 +40,10 @@ void javacall_os_flush_icache(unsigned char* address, int size) {
 void javacall_os_hardware_reset() {
 }
 
+int javacall_os_set_system_time(javacall_int64 time) {
+	return JAVACALL_NOT_IMPLEMENTED;
+}
+
 #ifdef __cplusplus
 }
 #endif

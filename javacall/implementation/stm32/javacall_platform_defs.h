@@ -169,7 +169,7 @@ typedef enum {
 	EVENT_FD_NETWORKUP = 8
 } javacall_event_type;
 
-#define JC_NATIVE_ROOT_PATH "/"
+#define JC_NATIVE_ROOT_PATH "0:/"
 #define JC_NATIVE_INTERNAL_ROOT_PATH JC_NATIVE_ROOT_PATH"appdb/"
 #define JC_NATIVE_USER_ROOT_PATH JC_NATIVE_ROOT_PATH"userdata/"
 
@@ -181,8 +181,8 @@ typedef enum {
 
 #define JAVACALL_INVALID_HANDLE    ((javacall_handle)-1)
 
-//#define JAVACALL_JAVATASK_STARTUP_PARAM  "-int", \
-//	"org.joshvm.ams.jams.Jams"
+#define JAVACALL_JAVATASK_STARTUP_PARAM "=HeapMin500000", "=HeapCapacity500000", "-int", \
+ 	"org.joshvm.ams.jams.Jams"
 
 #ifdef __cplusplus
 }

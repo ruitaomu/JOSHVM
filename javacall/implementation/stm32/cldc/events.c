@@ -73,7 +73,7 @@ javacall_result javacall_event_receive(
 
 	unsigned int tickStart = HAL_GetTick();
 	
-    while (!isMsgAvailable) {
+	while (!isMsgAvailable) {
 		if (timeTowaitInMillisec < 0) {
 			continue;
 		} else if (timeTowaitInMillisec == 0) {
@@ -90,7 +90,7 @@ javacall_result javacall_event_receive(
 			return JAVACALL_FAIL;
 		}
 	}
-
+	
 	if (pGet->len > binaryBufferMaxLen) {
 		return JAVACALL_OUT_OF_MEMORY;
 	}
