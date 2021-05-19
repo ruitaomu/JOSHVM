@@ -26,6 +26,20 @@ extern "C" {
 #include "javacall_memory.h"
 #include "javacall_logging.h"
 
+#include "main.h"
+
+/* Private typedef -----------------------------------------------------------*/
+/* Private define ------------------------------------------------------------*/
+//#define FATFS_MKFS_ALLOWED 0
+/* Private macro -------------------------------------------------------------*/
+/* Private variables ---------------------------------------------------------*/
+static FATFS SDFatFs;  /* File system object for SD card logical drive */
+static char SDPath[6]; /* SD card logical drive path */
+
+static uint8_t isInitialized = 0;
+static uint8_t isMounted = 0;
+static uint8_t isInserted = 0;
+
 char* javacall_UNICODEsToUtf8(const javacall_utf16* fileName, int fileNameLen) {
     static char result[256];
     if (fileNameLen >= 256) {
@@ -39,22 +53,97 @@ char* javacall_UNICODEsToUtf8(const javacall_utf16* fileName, int fileNameLen) {
     return &result[0];
 }
 
+static void SD_Initialize(void)
+{
+  if (isInitialized == 0)
+  {
+      javacall_print("Calling BSP_SD_Init()\n");
+    if (BSP_SD_Init() == MSD_OK)
+    {
+      javacall_print("SD initialized\n");
+      isInitialized = 1;
+    }
+
+    BSP_SD_ITConfig();
+  }
+}
+
+static javacall_result ensure_SD_mounted() {
+    if (!isInitialized || !isInserted) {
+        return JAVACALL_FAIL;
+    }
+    
+    if (isMounted) {
+        return JAVACALL_OK;
+    }
+    if(f_mount(&SDFatFs, (TCHAR const*)SDPath, 0) == FR_OK) {
+        isMounted = 1;
+        javacall_print("SD mount!\n");
+        return JAVACALL_OK;
+    } else {
+        javacall_print("SD mount failed!\n");
+        return JAVACALL_FAIL;
+    }
+}
+
+void javacall_file_set_SDstatus(int inserted) {
+    if (!isInitialized || inserted == isInserted) {
+        return;
+    }
+
+    if (!inserted) {
+        if (isMounted) {
+            isMounted = 0;        
+            f_mount(NULL, (TCHAR const*)"", 0);
+            javacall_print("SD umount!\n");
+        }
+        isInserted = 0;
+    } else {        
+        isInserted = 1;
+        ensure_SD_mounted();
+    }    
+}
+
 /**
  * Initializes the File System
  * @return <tt>JAVACALL_OK</tt> on success, <tt>JAVACALL_FAIL</tt> or negative value on error
  */
 javacall_result javacall_file_init(void) {
+/* 1- Link the micro SD disk I/O driver */
+  javacall_printf("javacall_file_init. _USE_LFN=%d, _LFN_UNICODE=%d, sizeof(TCHAR)=%d\n", _USE_LFN, _LFN_UNICODE, sizeof(TCHAR));
+  if(FATFS_LinkDriver(&SD_Driver, SDPath) == 0)
+  {
+      javacall_printf("SDPath:%s\n", SDPath);
+    /*##-2- Init the SD Card #################################################*/
+
+    SD_Initialize();
+    
+    if(BSP_SD_IsDetected()) {
+        isInserted = 1;
+        ensure_SD_mounted();
+    }
+
+    /* Make sure that the SD detecion IT has a lower priority than the Systick */
+    HAL_NVIC_SetPriority(SysTick_IRQn, 0x0E ,0);
+
     return JAVACALL_OK;
+  }
+  else
+  {
+    return JAVACALL_FAIL;
+  }   
 }
 /**
  * Cleans up resources used by file system
  * @return <tt>JAVACALL_OK</tt> on success, <tt>JAVACALL_FAIL</tt> or negative value on error
  */
 javacall_result javacall_file_finalize(void) {
+    if (isInitialized) {
+        f_mount(NULL, (TCHAR const*)"", 0);
+        isInitialized = 0;
+    }
     return JAVACALL_OK;
 }
-
-#define DEFAULT_CREATION_MODE_PERMISSION (0666)
 
 /**
  * The open a file
@@ -77,7 +166,37 @@ javacall_result javacall_file_finalize(void) {
  *
  */
 javacall_result javacall_file_open(const javacall_utf16 * unicodeFileName, int fileNameLen, int flags, /*OUT*/ javacall_handle * handle) {
-    return JAVACALL_FAIL;
+    BYTE mode = 0;
+    int basicFlags = flags & 0x03;
+    FIL* fileHandle;
+    
+    if (flags & JAVACALL_FILE_O_CREAT) {
+        mode = FA_CREATE_ALWAYS;
+    }
+    
+    if (basicFlags == JAVACALL_FILE_O_RDONLY) {
+		mode |= FA_READ;
+	} else if (basicFlags == JAVACALL_FILE_O_WRONLY) {
+        mode |= FA_WRITE;
+    } else if (basicFlags == JAVACALL_FILE_O_RDWR) {
+        mode |= (FA_WRITE | FA_READ);
+    }
+    
+    fileHandle = javacall_malloc(sizeof(FIL));
+    if (NULL == fileHandle) {
+        javacall_print("Javacall failed: out of memory when creating file\n");
+        return JAVACALL_FAIL;
+    }
+    
+    char* szFilename = javacall_UNICODEsToUtf8(unicodeFileName, fileNameLen);
+    
+    if(f_open(fileHandle, szFilename, mode) == FR_OK) {
+        *handle = fileHandle;
+        return JAVACALL_OK;
+    } else {
+        javacall_printf("Javacall failed: create file %s\n", szFilename);
+        return JAVACALL_FAIL;
+    }
 }
 
 /**
@@ -87,7 +206,12 @@ javacall_result javacall_file_open(const javacall_utf16 * unicodeFileName, int f
  *         <tt>JAVACALL_FAIL</tt> or negative value otherwise
  */
 javacall_result javacall_file_close(javacall_handle handle) {
-	return JAVACALL_FAIL;
+	if (f_close((FIL*)handle) == FR_OK) {
+        javacall_free(handle);
+        return JAVACALL_OK;
+    } else {
+        return JAVACALL_FAIL;
+    }
 }
 
 
@@ -100,7 +224,16 @@ javacall_result javacall_file_close(javacall_handle handle) {
  * @return the number of bytes actually read
  */
 long javacall_file_read(javacall_handle handle, unsigned char *buf, long size) {
-	return 0;
+    UINT actualBytesRead = 0;
+    if (f_read((FIL*)handle, buf, size, &actualBytesRead) == FR_OK) {
+        return actualBytesRead;
+    } else {
+        if (f_eof((FIL*)handle)) {
+            return 0;
+        } else {
+            return -1;
+        }
+    }
 }
 
 /**
@@ -113,7 +246,12 @@ long javacall_file_read(javacall_handle handle, unsigned char *buf, long size) {
  *         written to fills up).
  */
 long javacall_file_write(javacall_handle handle, const unsigned char *buf, long size) {
-	return 0;
+	UINT actualBytesWrite = 0;
+    if (f_write((FIL*)handle, buf, size, &actualBytesWrite) == FR_OK) {
+        return actualBytesWrite;
+    } else {
+        return -1;
+    }
 }
 
 /**
@@ -123,7 +261,16 @@ long javacall_file_write(javacall_handle handle, const unsigned char *buf, long 
  * @return JAVACALL_OK on success, <tt>JAVACALL_FAIL</tt> or negative value otherwise
  */
 javacall_result javacall_file_delete(const javacall_utf16 * unicodeFileName, int fileNameLen) {
-	return JAVACALL_FAIL;
+    char* pszOsFilename = javacall_UNICODEsToUtf8(unicodeFileName, fileNameLen);
+    if (pszOsFilename == NULL) {
+        return JAVACALL_FAIL;
+    }
+
+    if (FR_OK == f_unlink(pszOsFilename)) {
+        return JAVACALL_OK;
+    } else {
+        return JAVACALL_FAIL;
+    }
 }
 
 /**
@@ -158,7 +305,20 @@ javacall_result javacall_file_truncate(javacall_handle handle, javacall_int64 si
  */
 javacall_int64 javacall_file_seek(javacall_handle handle, javacall_int64 offset, javacall_file_seek_flags flag) {
 
-    return 0;
+    FSIZE_t fp = f_tell((FIL*)handle);
+    
+    switch (flag) {
+        case JAVACALL_FILE_SEEK_SET: break;
+        case JAVACALL_FILE_SEEK_CUR: offset += fp; break;
+        case JAVACALL_FILE_SEEK_END: offset += f_size((FIL*)handle); break;
+        default: return -1;
+    }
+        
+    if (FR_OK == f_lseek((FIL*)handle, offset)) {
+        return f_tell((FIL*)handle);
+    } else {
+        return -1;
+    }
 }
 
 
@@ -169,7 +329,7 @@ javacall_int64 javacall_file_seek(javacall_handle handle, javacall_int64 offset,
  * @return size of file in bytes if successful, -1 otherwise
  */
 javacall_int64 javacall_file_sizeofopenfile(javacall_handle handle) {
-	return -1;
+	return f_size((FIL*)handle);
 }
 
 /**
@@ -179,7 +339,13 @@ javacall_int64 javacall_file_sizeofopenfile(javacall_handle handle) {
  * @return size of file in bytes if successful, -1 otherwise
  */
 javacall_int64 javacall_file_sizeof(const javacall_utf16 * fileName, int fileNameLen) {
-    return -1;
+    FILINFO info;
+    
+    if (FR_OK != f_stat (javacall_UNICODEsToUtf8(fileName, fileNameLen), &info)) {
+        return -1;
+    }
+        
+    return info.fsize;
 }
 
 /**
@@ -191,7 +357,17 @@ javacall_int64 javacall_file_sizeof(const javacall_utf16 * fileName, int fileNam
  */
 javacall_result javacall_file_exist(const javacall_utf16 * fileName, int fileNameLen) {
 
-    return JAVACALL_FAIL;
+    FILINFO info;
+    char* szFilename;
+    
+    szFilename = javacall_UNICODEsToUtf8(fileName, fileNameLen);
+    
+    if (FR_OK != f_stat (szFilename, &info)) {
+        javacall_printf("File %s doesn't exist\n", szFilename);
+        return JAVACALL_FAIL;
+    }
+    javacall_printf("File %s exists\n", szFilename);
+    return JAVACALL_OK;
 }
 
 
@@ -202,7 +378,11 @@ javacall_result javacall_file_exist(const javacall_utf16 * fileName, int fileNam
  * @return JAVACALL_OK  on success, <tt>JAVACALL_FAIL</tt> or negative value otherwise
  */
 javacall_result javacall_file_flush(javacall_handle handle) {
-    return JAVACALL_FAIL;
+    if (FR_OK == f_sync((FIL*)handle)) {
+        return JAVACALL_OK;
+    } else {
+        return JAVACALL_FAIL;
+    }    
 }
 
 /**
@@ -216,7 +396,15 @@ javacall_result javacall_file_flush(javacall_handle handle) {
  */
 javacall_result javacall_file_rename(const javacall_utf16 * unicodeOldFilename, int oldNameLen,
         const javacall_utf16 * unicodeNewFilename, int newNameLen) {
-    return JAVACALL_FAIL;
+    
+    char* pszOldFilename = javacall_UNICODEsToUtf8(unicodeOldFilename, oldNameLen);
+    char* pszNewFilename = javacall_UNICODEsToUtf8(unicodeNewFilename, newNameLen);
+    
+    if (FR_OK != f_rename(pszOldFilename, pszNewFilename)) {
+        return JAVACALL_FAIL;
+    } else {
+        return JAVACALL_OK;
+    }
 }
 
 #ifdef __cplusplus

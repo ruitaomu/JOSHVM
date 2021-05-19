@@ -1090,6 +1090,14 @@ static int  linux_server_socket_accept_common(
         }
     }
 
+	//make socket non-blocking
+	int flags = fcntl(connfd, F_GETFL, 0); 
+	int status = fcntl(connfd, F_SETFL, flags | O_NONBLOCK);
+	if(status == -1) {
+		close(connfd);
+		return JAVACALL_FAIL;
+	}
+
 	*newhandle = AllocHandle();
 	SetFD(*newhandle, connfd);
     

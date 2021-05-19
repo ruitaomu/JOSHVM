@@ -25,7 +25,7 @@ extern "C" {
     
 #include "javacall_memory.h"
 
-#define JAVACALL_HEAP_SIZE (130*1024)
+#define JAVACALL_HEAP_SIZE (535*1024)
 static char buf[JAVACALL_HEAP_SIZE];
 
 /**

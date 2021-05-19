@@ -326,7 +326,27 @@ void HAL_SPI_MspDeInit(SPI_HandleTypeDef* hspi)
 void HAL_UART_MspInit(UART_HandleTypeDef* huart)
 {
   GPIO_InitTypeDef GPIO_InitStruct = {0};
-  if(huart->Instance==USART2)
+  if(huart->Instance == LPUART1)     /* LPUART1 Configuration */
+  {
+    /* Enable LPUART1 GPIO TX/RX clock */
+    __HAL_RCC_GPIOG_CLK_ENABLE();
+    
+    /* Enable LPUART1 clock */
+    __HAL_RCC_LPUART1_CLK_ENABLE();    
+    
+    /* Configure LPUART1 Rx and Tx as alternate function  */
+    GPIO_InitStruct.Pin = GPIO_PIN_7 | GPIO_PIN_8;
+    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+    GPIO_InitStruct.Pull = GPIO_PULLUP;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_MEDIUM; 
+    GPIO_InitStruct.Alternate = GPIO_AF8_LPUART1;
+    HAL_GPIO_Init(GPIOG, &GPIO_InitStruct);
+    
+    /* Enable and set LPUART1 Interrupt to the highest priority */
+    HAL_NVIC_SetPriority(LPUART1_IRQn, 1, 0);
+    HAL_NVIC_EnableIRQ(LPUART1_IRQn);
+  }  
+  else if(huart->Instance==USART2)
   {
   /* USER CODE BEGIN USART2_MspInit 0 */
 
@@ -347,7 +367,9 @@ void HAL_UART_MspInit(UART_HandleTypeDef* huart)
     HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /* USER CODE BEGIN USART2_MspInit 1 */
-
+    /* Enable and set USART2 Interrupt to high priority */
+    HAL_NVIC_SetPriority(USART2_IRQn, 1, 0);
+    HAL_NVIC_EnableIRQ(USART2_IRQn);
   /* USER CODE END USART2_MspInit 1 */
   }
   else if(huart->Instance==USART3)
@@ -380,7 +402,9 @@ void HAL_UART_MspInit(UART_HandleTypeDef* huart)
     HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /* USER CODE BEGIN USART3_MspInit 1 */
-
+    /* Enable and set USART3 Interrupt to high priority */
+    HAL_NVIC_SetPriority(USART3_IRQn, 1, 0);
+    HAL_NVIC_EnableIRQ(USART3_IRQn);
   /* USER CODE END USART3_MspInit 1 */
   }
 

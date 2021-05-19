@@ -430,3 +430,5 @@ char* javacall_inet_ntoa(javacall_ip_version ip_version, void *address) {
 	return "";
 }
 
+void javacall_network_config() {
+}
