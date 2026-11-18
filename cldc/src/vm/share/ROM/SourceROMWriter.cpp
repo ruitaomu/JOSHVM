@@ -213,6 +213,12 @@ void SourceROMWriter::init_declare_stream() {
   _declare_stream.print_cr("#include \"ROMImage.hpp\"");
   _declare_stream.print_cr("#include \"kni.h\"");
 
+  // The image initializes int arrays with unsigned constants (0x80000000
+  // and above), which Visual C++ reports once per constant.
+  _declare_stream.print_cr("#ifdef _MSC_VER");
+  _declare_stream.print_cr("#pragma warning(disable: 4838)");
+  _declare_stream.print_cr("#endif");
+
   // Write the macros needed by the contents in _stream
   write_text_undefines(&_declare_stream);
 
