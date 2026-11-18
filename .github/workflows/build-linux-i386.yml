@@ -1,9 +1,13 @@
 name: Build and test Linux i386
 
-# Manual trigger only: this workflow has not run yet. Switch to
-# push/pull_request once a run is green.
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - glowing-sniffle
+  pull_request:
+    branches:
+      - master
 
 permissions:
   contents: read
