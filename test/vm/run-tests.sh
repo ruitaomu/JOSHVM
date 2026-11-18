@@ -23,6 +23,11 @@ HERE=$ROOT/test/vm
 OUT=$HERE/build
 case `uname -s 2>/dev/null` in
   CYGWIN*|MINGW*|MSYS*)
+    if [ -n "$GITHUB_WORKSPACE" ]; then
+      ROOT=`cygpath -u "$GITHUB_WORKSPACE" 2>/dev/null || pwd`
+    else
+      ROOT=`cd \`dirname $0\`/../.. && pwd`
+    fi
     : ${VM_DIR:=$ROOT/cldc/build/javacall_i386_vc/dist/bin}
     : ${VMS:="cldc_vm_g.exe cldc_vm.exe"}
     : ${PREVERIFY:=$ROOT/cldc/build/javacall_i386_vc/dist/bin/preverify.exe}
