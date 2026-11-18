@@ -13,7 +13,7 @@ permissions:
   contents: read
 
 jobs:
-  build:
+  linux-i386:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -21,3 +21,37 @@ jobs:
         run: docker build -t joshvm-build-linux-i386 tools/docker/linux-i386
       - name: Build VM and run tests
         run: docker run --rm -v "$PWD":/src joshvm-build-linux-i386
+
+  win32-i386:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 8
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "8"
+
+      - name: Set up Visual Studio environment
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Set up Cygwin
+        uses: cygwin/cygwin-install-action@v5
+        with:
+          packages: bash,make,findutils,zip,unzip
+
+      - name: Build and test Win32 i386
+        shell: pwsh
+        run: |
+          C:\cygwin64\bin\bash.exe --login -lc '
+            cd "$(cygpath -u "$env:GITHUB_WORKSPACE")"
+            export JDK_DIR="$(cygpath -m "$JAVA_HOME")"
+            export ENABLE_CLDC_8=false
+            ./build-win32-cldc.sh -C -J "$JDK_DIR"
+            JDK_DIR="$JDK_DIR" test/vm/run-tests.sh
+
+            export ENABLE_CLDC_8=true
+            ./build-win32-cldc.sh -C -J "$JDK_DIR"
+            JDK_DIR="$JDK_DIR" test/vm/run-tests.sh
+          '

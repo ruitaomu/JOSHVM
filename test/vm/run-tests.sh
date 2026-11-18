@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# VM tests for the Linux i386 build.
+# VM tests for the Linux i386 and Win32 i386 builds.
 #
 # Usage, from the repository root, after build-linux-i386-cldc.sh:
 #   JDK_DIR=/path/to/jdk8 test/vm/run-tests.sh
@@ -21,10 +21,21 @@
 ROOT=`cd \`dirname $0\`/../.. && pwd`
 HERE=$ROOT/test/vm
 OUT=$HERE/build
-: ${VM_DIR:=$ROOT/cldc/build/javacall_i386_gcc/dist/bin}
-: ${VMS:="cldc_vm_g cldc_vm"}
+case `uname -s 2>/dev/null` in
+  CYGWIN*|MINGW*|MSYS*)
+    : ${VM_DIR:=$ROOT/cldc/build/javacall_i386_vc/dist/bin}
+    : ${VMS:="cldc_vm_g.exe cldc_vm.exe"}
+    : ${PREVERIFY:=$ROOT/cldc/build/javacall_i386_vc/dist/bin/preverify.exe}
+    HOST_PLATFORM=win32
+    ;;
+  *)
+    : ${VM_DIR:=$ROOT/cldc/build/javacall_i386_gcc/dist/bin}
+    : ${VMS:="cldc_vm_g cldc_vm"}
+    : ${PREVERIFY:=$ROOT/preverifier/build/linux/preverify}
+    HOST_PLATFORM=linux
+    ;;
+esac
 : ${BOOT_CLASSES:=$ROOT/cldc/build/classes.zip}
-: ${PREVERIFY:=$ROOT/preverifier/build/linux/preverify}
 
 if [ -z "$JDK_DIR" ]; then
     echo "JDK_DIR must point to a JDK 8" >&2
