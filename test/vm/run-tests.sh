@@ -13,6 +13,8 @@
 #   BOOT_CLASSES  class library to compile against
 #   PREVERIFY     preverify executable for the legacy test
 #   FUZZ_COUNT    number of randomly damaged classes to try (default 40)
+#   SKIP_DEBUG_JIT  true to skip positive tests on the debug VM with the
+#                 compiler enabled (Win32: see issue #4)
 #
 # Each positive test is run with the compiler enabled and with -int, and
 # must print PASS as its last line. Each negative test is a class patched
@@ -55,6 +57,7 @@ JAVA=$JDK_DIR/bin/java
 
 passed=0
 failed=0
+skipped=0
 
 report() { # result name detail
     if [ "$1" = ok ]; then
@@ -75,6 +78,13 @@ run_vm() { # vm mode classpath class
 expect_pass() { # label classpath class
     for vm in $VMS; do
         for mode in "" "-int"; do
+            case "$SKIP_DEBUG_JIT:$vm:$mode" in
+              true:*_g*:)
+                skipped=`expr $skipped + 1`
+                echo "skipped $1 [$vm $mode]"
+                continue
+                ;;
+            esac
             output=`run_vm $vm "$mode" $2 $3`
             status=$?
             if [ "`echo "$output" | tail -1 | tr -d '\r'`" = PASS ]; then
@@ -258,5 +268,5 @@ else
     report fail "fuzz StackMapTable [$fuzz_vm]" "$fuzz_crashes crashes"
 fi
 
-echo "--- $passed passed, $failed failed"
+echo "--- $passed passed, $failed failed, $skipped skipped"
 [ $failed -eq 0 ]
