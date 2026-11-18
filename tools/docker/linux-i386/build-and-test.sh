@@ -14,6 +14,8 @@ cd `dirname $0`/../../..
 
 : ${JDK_DIR:=$JAVA_HOME}
 export JDK_DIR
+: ${HOST_EXE_RUN:=qemu-i386}
+export HOST_EXE_RUN
 
 # The preverify binaries checked in under cldc/build/share/bin predate
 # large inode numbers and silently produce nothing on current file
