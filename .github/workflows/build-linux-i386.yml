@@ -54,6 +54,9 @@ jobs:
           C:\msys64\usr\bin\bash.exe --login -lc '
             pacman --noconfirm --needed -S make zip unzip findutils
             cd "$(cygpath -u "$GITHUB_WORKSPACE")"
+            VC_BIN="$(cygpath -u "$VCToolsInstallDir")/bin/Hostx64/x86"
+            export PATH="$VC_BIN:$PATH"
+            export MSYS2_ARG_CONV_EXCL="*"
             command -v cl.exe
             command -v link.exe
             export JDK_DIR="$(cygpath -m "$JAVA_HOME")"
