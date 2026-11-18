@@ -1350,7 +1350,7 @@ ReturnOop Universe::new_instance(InstanceClass* klass JVM_TRAPS) {
       flags.clear_has_unresolved_finalizer();
       klass->set_access_flags(flags);
 #else 
-      Throw::unsatisfied_link_error(&finalize_method JVM_THROW_0)
+      Throw::unsatisfied_link_error(&finalize_method JVM_THROW_0);
 #endif
     }
     ObjectHeap::register_finalizer_reachable_object(&obj JVM_CHECK_0);

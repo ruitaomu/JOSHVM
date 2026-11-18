@@ -412,7 +412,7 @@ ConstantPool::lookup_method_at(InstanceClass *sender_class, int index,
   if (tag_at(index).is_resolved_virtual_method()) {
     //see CR6463588
     //TCK test:javasoft.sqe.tests.vm.instr.invokestatic.invokestatic009.invokestatic00902m1
-    Throw::incompatible_class_change_error(method_changed JVM_THROW_0)
+    Throw::incompatible_class_change_error(method_changed JVM_THROW_0);
   }
   GUARANTEE(tag_at(index).is_method(), "Corrupted constant pool");
 

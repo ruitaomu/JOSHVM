@@ -1199,7 +1199,12 @@ inline jint construct_jint_from_jushorts(jushort high, jushort low) {
 }
 
 
-#define _IGNORE_ME_(...)  /* intentionally empty */
+// The trap macros below end with "_IGNORE_ME_(0" and rely on the ")" that
+// follows them in the source. This must not be a function-like macro:
+// current Visual C++ rejects a macro invocation that starts inside one
+// macro expansion and is completed by the surrounding source. Expanding to
+// a cast makes "_IGNORE_ME_(0" plus that ")" the empty statement "(void)(0)".
+#define _IGNORE_ME_ (void)
 #define CURRENT_HAS_PENDING_EXCEPTION (jvm_fast_globals.current_pending_exception)
 
 #ifndef PRODUCT
@@ -1399,108 +1404,6 @@ extern jint global_check_count;
 #define JVM_NO_CHECK_AT_BOTTOM_0
 #define JVM_SINGLE_ARG_NO_CHECK_AT_BOTTOM
 
-#endif
-
-#ifdef _MSC_VER
-// Visual C++ 2012 and later cannot reliably preprocess the legacy
-// cross-line _IGNORE_ME_(0 fragments used above.  Keep complete trap
-// expansions on this compiler only.
-#undef JVM_IGNORE_TRAPS
-#define JVM_IGNORE_TRAPS (void)_traps_ptr
-#undef SETUP_ERROR_CHECKER_ARG
-#define SETUP_ERROR_CHECKER_ARG Traps* _traps_ptr = NULL
-#undef JVM_SINGLE_ARG_TRAPS
-#define JVM_SINGLE_ARG_TRAPS Traps* _traps_ptr
-#undef JVM_TRAPS
-#define JVM_TRAPS , JVM_SINGLE_ARG_TRAPS
-
-#undef JVM_SINGLE_ARG_ZCHECK
-#define JVM_SINGLE_ARG_ZCHECK(cond) \
-          _traps_ptr); \
-        if (!(cond)) { \
-          GUARANTEE(CURRENT_HAS_PENDING_EXCEPTION, "JVM_ZCHECK sanity check"); \
-          return; \
-        } \
-        GUARANTEE(!CURRENT_HAS_PENDING_EXCEPTION, "JVM_ZCHECK sanity check 2")
-
-#undef JVM_SINGLE_ARG_ZCHECK_0
-#define JVM_SINGLE_ARG_ZCHECK_0(cond) \
-          _traps_ptr); \
-        if (!(cond)) { \
-          GUARANTEE(CURRENT_HAS_PENDING_EXCEPTION, "JVM_ZCHECK sanity check"); \
-          return 0; \
-        } \
-        GUARANTEE(!CURRENT_HAS_PENDING_EXCEPTION, "JVM_ZCHECK sanity check 2")
-
-#undef JVM_ZCHECK
-#define JVM_ZCHECK(cond)                  , JVM_SINGLE_ARG_ZCHECK(cond)
-#undef JVM_ZCHECK_0
-#define JVM_ZCHECK_0(cond)                , JVM_SINGLE_ARG_ZCHECK_0(cond)
-#undef JVM_OZCHECK
-#define JVM_OZCHECK(obj)                  , JVM_SINGLE_ARG_ZCHECK_0(((obj).not_null()))
-#undef JVM_SINGLE_ARG_OZCHECK
-#define JVM_SINGLE_ARG_OZCHECK(obj)       JVM_SINGLE_ARG_ZCHECK_0(((obj).not_null()))
-
-#undef JVM_SINGLE_ARG_CHECK
-#define JVM_SINGLE_ARG_CHECK \
-          _traps_ptr); \
-        INC_COUNTER; \
-        if (CURRENT_HAS_PENDING_EXCEPTION) { \
-          return; \
-        }
-
-#undef JVM_SINGLE_ARG_CHECK_
-#define JVM_SINGLE_ARG_CHECK_(result) \
-          _traps_ptr); \
-        INC_COUNTER; \
-        if (CURRENT_HAS_PENDING_EXCEPTION) { \
-          return result; \
-        }
-
-#undef JVM_SINGLE_ARG_THROW
-#define JVM_SINGLE_ARG_THROW \
-          _traps_ptr); \
-        INC_COUNTER; \
-        return;
-
-#undef JVM_SINGLE_ARG_THROW_
-#define JVM_SINGLE_ARG_THROW_(result) \
-          _traps_ptr); \
-        INC_COUNTER; \
-        return result;
-
-#undef JVM_CHECK
-#define JVM_CHECK                         , JVM_SINGLE_ARG_CHECK
-#undef JVM_CHECK_
-#define JVM_CHECK_(result)                , JVM_SINGLE_ARG_CHECK_(result)
-#undef JVM_THROW
-#define JVM_THROW                         , JVM_SINGLE_ARG_THROW
-#undef JVM_THROW_
-#define JVM_THROW_(result)                , JVM_SINGLE_ARG_THROW_(result)
-
-#undef JVM_NO_CHECK_AT_BOTTOM
-#define JVM_NO_CHECK_AT_BOTTOM             , _traps_ptr)
-#undef JVM_SINGLE_ARG_NO_CHECK_AT_BOTTOM
-#define JVM_SINGLE_ARG_NO_CHECK_AT_BOTTOM  _traps_ptr)
-#undef JVM_NO_CHECK_AT_BOTTOM_0
-#define JVM_NO_CHECK_AT_BOTTOM_0           , _traps_ptr)
-
-#undef JVM_NO_CHECK
-#define JVM_NO_CHECK                       JVM_NO_CHECK_AT_BOTTOM
-#undef JVM_SINGLE_ARG_NO_CHECK
-#define JVM_SINGLE_ARG_NO_CHECK            JVM_SINGLE_ARG_NO_CHECK_AT_BOTTOM
-
-#undef JVM_MUST_SUCCEED
-#define JVM_MUST_SUCCEED \
-        JVM_NO_CHECK); \
-        GUARANTEE(!CURRENT_HAS_PENDING_EXCEPTION, "must succeed"); \
-        _IGNORE_ME_(0
-
-#undef JVM_SINGLE_ARG_MUST_SUCCEED
-#define JVM_SINGLE_ARG_MUST_SUCCEED \
-        JVM_SINGLE_ARG_NO_CHECK); \
-        GUARANTEE(!CURRENT_HAS_PENDING_EXCEPTION, "must succeed"); \
-        _IGNORE_ME_(0
 #endif
 
 // Shorthand versions for cases where '0' satisfies the required result type:

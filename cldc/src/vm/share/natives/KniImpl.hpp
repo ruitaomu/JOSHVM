@@ -30,7 +30,8 @@
  * files: kni.cpp and KniUncommon.cpp
  */
 
-#define _KNI_IGNORE_ME_(x)
+// See _IGNORE_ME_ in GlobalDefinitions.hpp
+#define _KNI_IGNORE_ME_ (void)
 
 #define _KNI_CHECK \
           JVM_NO_CHECK); \

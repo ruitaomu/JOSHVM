@@ -1391,7 +1391,7 @@ void ROMOptimizer::remove_dead_methods(JVM_SINGLE_ARG_TRAPS) {
         // A nulled-out method
         continue;
       }
-      bool in_closure = is_invocation_closure_root(&klass, &method JVM_CHECK)
+      bool in_closure = is_invocation_closure_root(&klass, &method JVM_CHECK);
       if (in_closure) {
         mic.add_method(&method JVM_CHECK);
       }
@@ -2061,7 +2061,7 @@ int ROMOptimizer::rename_non_public_class(InstanceClass *klass JVM_TRAPS) {
   // [1] all classes in hidden packages
   // [2] package-private classes in restricted packages
   bool may_rename = false;
-  bool hidden = is_in_hidden_package(klass JVM_CHECK_0;)
+  bool hidden = is_in_hidden_package(klass JVM_CHECK_0);
   if (hidden) {
     may_rename = true;
   } else if (is_in_restricted_package(klass) && !klass->is_public()) {
