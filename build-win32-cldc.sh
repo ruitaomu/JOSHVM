@@ -62,6 +62,7 @@ ENABLE_JSR280=true
 ENABLE_MEDIA=true
 BUILD_SDK=true
 : ${ENABLE_CLDC_8:=false}
+export USE_CYGWIN=true
 
 while getopts \?J:CTcdDehjmnpr: c
 do
