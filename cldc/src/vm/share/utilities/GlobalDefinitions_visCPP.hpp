@@ -92,10 +92,6 @@ const jlong max_jlong = 0x7fffffffffffffffL;
 //----------------------------------------------------------------------------
 // Miscellaneous
 
-inline int vsnprintf(char* buf, size_t count, const char* fmt, va_list argptr) {
-  return _vsnprintf(buf, count, fmt, argptr);
-}
-
 #define snprintf sprintf_s
 
 
