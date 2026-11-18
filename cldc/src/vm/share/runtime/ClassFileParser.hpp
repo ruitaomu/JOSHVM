@@ -194,7 +194,10 @@ class ClassFileParser: public StackObj {
   ReturnOop parse_exception_table(int code_length, ConstantPool* cp JVM_TRAPS);
   ReturnOop parse_code_attributes(ConstantPool* cp, jushort max_stack,
                                   jushort max_locals, juint code_length,
-                                  LineVarTable *line_var_table JVM_TRAPS);
+                                  LineVarTable *line_var_table,
+                                  int major_version, bool is_static,
+                                  Symbol* method_name,
+                                  Symbol* method_signature JVM_TRAPS);
   static void init_native_method(Method *method, address native_function);
 
   // Stackmap parsing
@@ -202,6 +205,16 @@ class ClassFileParser: public StackObj {
                         jushort num_stackmaps, jushort max_stack, 
                         jushort frame_size, juint code_length, 
                         ObjArray* stackmaps JVM_TRAPS);
+  // Parses a StackMapTable attribute (class file version 50 and later) and
+  // expands it into the same per-frame representation parse_stackmaps()
+  // produces for the CLDC StackMap attribute.
+  ReturnOop parse_stackmap_table(ConstantPool* cp, jushort max_stack,
+                                 jushort max_locals, juint code_length,
+                                 bool is_static, Symbol* method_name,
+                                 Symbol* method_signature JVM_TRAPS);
+  void parse_verification_type(ConstantPool* cp, juint code_length,
+                               TypeArray* tags, ObjArray* classes,
+                               int* pos, int limit JVM_TRAPS);
 
   // Classfile attribute parsing
   void parse_classfile_sourcefile_attribute(ConstantPool* cp JVM_TRAPS);

@@ -60,6 +60,7 @@ AccessFlags::FlagInfo AccessFlags::flag_info[] = {
  {JVM_ACC_CONVERTED,              AccessFlags::C,   "CONVERTED"},
  {JVM_ACC_NON_OPTIMIZABLE,        AccessFlags::C,   "NON_OPTIMIZABLE"},
  {JVM_ACC_VERIFIED,               AccessFlags::C,   "VERIFIED"},
+ {JVM_ACC_LDC_CLASS_ALLOWED,      AccessFlags::C,   "LDC_CLASS_ALLOWED"},
  {JVM_ACC_HIDDEN,                 AccessFlags::C,   "HIDDEN"}
 };
 

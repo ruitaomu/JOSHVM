@@ -1223,6 +1223,12 @@ void bc_new::generate() {
   push_obj(eax);
 }
 
+void bc_fast_class_ldc::generate(bool /*is_wide*/) {
+  comment("Call runtime routine");
+  interpreter_call_vm(Constant("ldc_class"), T_OBJECT);
+  push_obj(eax);
+}
+
 void bc_anewarray::generate() {
   interpreter_call_vm(Constant("anewarray"), T_ARRAY);
   pop_int(ebx, ebx);

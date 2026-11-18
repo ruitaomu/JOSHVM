@@ -255,6 +255,12 @@ ClassFileParser::parse_constant_pool_entries(ConstantPool* cp JVM_TRAPS) {
       case JVM_CONSTANT_Utf8 :
         parse_constant_pool_utf8_entry(cp, index JVM_NO_CHECK);
         break;
+      case 15: // CONSTANT_MethodHandle
+      case 16: // CONSTANT_MethodType
+      case 18: // CONSTANT_InvokeDynamic
+        classfile_parse_error(invokedynamic_not_supported
+                              JVM_NO_CHECK_AT_BOTTOM);
+        return;
       default:
         classfile_parse_error(unknown_constant_tag JVM_NO_CHECK_AT_BOTTOM);
         return;
@@ -830,6 +836,218 @@ juint ClassFileParser::parse_stackmaps(ConstantPool *cp, jushort num_stackmaps,
   return (endpos - startpos) + 2;
 }
 
+// Reads one verification_type_info of a StackMapTable frame and stores it
+// at tags[*pos] / classes[*pos], expanded to two slots for long and double.
+// <limit> is the exclusive upper bound for the slot index.
+void ClassFileParser::parse_verification_type(ConstantPool* cp,
+                                              juint code_length,
+                                              TypeArray* tags,
+                                              ObjArray* classes,
+                                              int* pos, int limit JVM_TRAPS) {
+  const int p = *pos;
+  const jubyte type = get_u1(JVM_SINGLE_ARG_CHECK);
+  if (p >= limit) {
+    classfile_parse_error(bad_stackmap_size JVM_THROW);
+  }
+  classes->obj_at_clear(p);
+
+  switch (type) {
+    case ITEM_Bogus:
+    case ITEM_Integer:
+    case ITEM_Float:
+    case ITEM_Null:
+    case ITEM_InitObject:
+      tags->int_at_put(p, type);
+      *pos = p + 1;
+      break;
+    case ITEM_Long:
+    case ITEM_Double:
+      if (p + 1 >= limit) {
+        classfile_parse_error(bad_stackmap_size JVM_THROW);
+      }
+      tags->int_at_put(p, type);
+      tags->int_at_put(p + 1,
+                       (type == ITEM_Long) ? ITEM_Long_2 : ITEM_Double_2);
+      classes->obj_at_clear(p + 1);
+      *pos = p + 2;
+      break;
+    case ITEM_Object: {
+      const jushort class_index = get_u2(JVM_SINGLE_ARG_CHECK);
+      cpf_check(class_index != 0 && class_index < cp->length(),
+                bad_constantpool_index);
+      cpf_check(ConstantTag::is_unresolved_klass(
+                    cp->tag_value_at(class_index)),
+                bad_constantpool_index);
+      Symbol::Raw class_name = cp->unresolved_klass_at(class_index JVM_CHECK);
+      tags->int_at_put(p, ITEM_Object);
+      classes->obj_at_put(p, &class_name);
+      *pos = p + 1;
+      break;
+    }
+    case ITEM_NewObject: {
+      const jushort new_instr = get_u2(JVM_SINGLE_ARG_CHECK);
+      if (new_instr >= code_length) {
+        classfile_parse_error(bad_stackmap_type JVM_THROW);
+      }
+      tags->int_at_put(p, ENCODE_NEWOBJECT(new_instr));
+      *pos = p + 1;
+      break;
+    }
+    default:
+      classfile_parse_error(bad_stackmap_type JVM_THROW);
+  }
+}
+
+ReturnOop ClassFileParser::parse_stackmap_table(ConstantPool* cp,
+                                                jushort max_stack,
+                                                jushort max_locals,
+                                                juint code_length,
+                                                bool is_static,
+                                                Symbol* method_name,
+                                                Symbol* method_signature
+                                                JVM_TRAPS) {
+  UsingFastOops fast_oops;
+  // The frame the next entry is a delta against. Long and double take two
+  // slots here, as they do in the output.
+  TypeArray::Fast cur_tags = Universe::new_int_array(max_locals JVM_CHECK_0);
+  ObjArray::Fast cur_classes = Universe::new_obj_array(max_locals JVM_CHECK_0);
+  TypeArray::Fast stackmap_scalars;
+  ObjArray::Fast stackmap_classes;
+  ObjArray::Fast stackmaps;
+  int cur_nlocals = 0;
+
+  // The implicit initial frame comes from the method descriptor.
+  if (!is_static) {
+    cpf_check_0(max_locals >= 1, bad_stackmap_size);
+    if (method_name->equals(Symbols::object_initializer_name()) &&
+        !name()->equals(Symbols::java_lang_Object())) {
+      cur_tags().int_at_put(0, ITEM_InitObject);
+    } else {
+      cur_tags().int_at_put(0, ITEM_Object);
+      cur_classes().obj_at_put(0, name());
+    }
+    cur_nlocals = 1;
+  }
+  {
+    Signature::Fast signature = method_signature->obj();
+    SignatureStream ss(&signature, true);
+    for (; !ss.eos(); ss.next()) {
+      const BasicType type = ss.type();
+      const int words = (type == T_LONG || type == T_DOUBLE) ? 2 : 1;
+      cpf_check_0(cur_nlocals + words <= max_locals, bad_stackmap_size);
+      switch (type) {
+        case T_OBJECT:
+        case T_ARRAY: {
+          Symbol::Raw type_name = ss.type_symbol();
+          cur_tags().int_at_put(cur_nlocals, ITEM_Object);
+          cur_classes().obj_at_put(cur_nlocals, &type_name);
+          break;
+        }
+        case T_LONG:
+          cur_tags().int_at_put(cur_nlocals, ITEM_Long);
+          cur_tags().int_at_put(cur_nlocals + 1, ITEM_Long_2);
+          break;
+        case T_DOUBLE:
+          cur_tags().int_at_put(cur_nlocals, ITEM_Double);
+          cur_tags().int_at_put(cur_nlocals + 1, ITEM_Double_2);
+          break;
+        case T_FLOAT:
+          cur_tags().int_at_put(cur_nlocals, ITEM_Float);
+          break;
+        default:
+          cur_tags().int_at_put(cur_nlocals, ITEM_Integer);
+          break;
+      }
+      cur_nlocals += words;
+    }
+  }
+
+  const int num_frames = get_u2(JVM_SINGLE_ARG_CHECK_0);
+  stackmaps = Universe::new_obj_array(2 * num_frames JVM_CHECK_0);
+
+  const int temp_size = max_stack + max_locals + 4;
+  int offset = -1;
+
+  for (int n = 0; n < num_frames; n++) {
+    stackmap_scalars = Universe::new_int_array(temp_size JVM_CHECK_0);
+    stackmap_classes = Universe::new_obj_array(temp_size JVM_CHECK_0);
+
+    const int frame_type = get_u1(JVM_SINGLE_ARG_CHECK_0);
+    int offset_delta;
+    int stack_items = 0;
+
+    if (frame_type <= 63) {                     // same_frame
+      offset_delta = frame_type;
+    } else if (frame_type <= 127) {             // same_locals_1_stack_item
+      offset_delta = frame_type - 64;
+      stack_items = 1;
+    } else if (frame_type < 247) {              // reserved
+      classfile_parse_error(bad_stackmap_frame_type JVM_THROW_0);
+    } else {
+      offset_delta = get_u2(JVM_SINGLE_ARG_CHECK_0);
+      if (frame_type == 247) {                  // ..._1_stack_item_extended
+        stack_items = 1;
+      } else if (frame_type <= 250) {           // chop_frame
+        for (int k = 251 - frame_type; k > 0; k--) {
+          cpf_check_0(cur_nlocals > 0, bad_stackmap_size);
+          cur_nlocals--;
+          const int tag = cur_tags().int_at(cur_nlocals);
+          if (tag == ITEM_Long_2 || tag == ITEM_Double_2) {
+            // A long or double is one entry occupying two slots
+            cpf_check_0(cur_nlocals > 0, bad_stackmap_size);
+            cur_nlocals--;
+          }
+        }
+      } else if (frame_type == 251) {           // same_frame_extended
+      } else if (frame_type <= 254) {           // append_frame
+        for (int k = frame_type - 251; k > 0; k--) {
+          parse_verification_type(cp, code_length, &cur_tags, &cur_classes,
+                                  &cur_nlocals, max_locals JVM_CHECK_0);
+        }
+      } else {                                  // full_frame
+        int num_locals = get_u2(JVM_SINGLE_ARG_CHECK_0);
+        cur_nlocals = 0;
+        while (num_locals-- > 0) {
+          parse_verification_type(cp, code_length, &cur_tags, &cur_classes,
+                                  &cur_nlocals, max_locals JVM_CHECK_0);
+        }
+        stack_items = get_u2(JVM_SINGLE_ARG_CHECK_0);
+      }
+    }
+
+    offset += offset_delta + 1;
+    if ((juint)offset >= code_length) {
+      classfile_parse_error(bad_stackmap_offset JVM_THROW_0);
+    }
+
+    // Layout: [0] bci, [1] locals size, locals..., stack size, stack...
+    stackmap_scalars().int_at_put(0, offset);
+    stackmap_scalars().int_at_put(1, cur_nlocals);
+    for (int i = 0; i < cur_nlocals; i++) {
+      const int tag = cur_tags().int_at(i);
+      stackmap_scalars().int_at_put(2 + i, tag);
+      if (tag == ITEM_Object) {
+        Symbol::Raw class_name = cur_classes().obj_at(i);
+        stackmap_classes().obj_at_put(2 + i, &class_name);
+      }
+    }
+    const int stack_size_index = 2 + cur_nlocals;
+    int pos = stack_size_index + 1;
+    const int limit = pos + max_stack;
+    while (stack_items-- > 0) {
+      parse_verification_type(cp, code_length, &stackmap_scalars,
+                              &stackmap_classes, &pos, limit JVM_CHECK_0);
+    }
+    stackmap_scalars().int_at_put(stack_size_index,
+                                  pos - stack_size_index - 1);
+
+    stackmaps().obj_at_put(2 * n, &stackmap_scalars);
+    stackmaps().obj_at_put(2 * n + 1, &stackmap_classes);
+  }
+
+  return stackmaps.obj();
+}
+
 inline ReturnOop ClassFileParser::parse_exception_table(int code_length, 
                                                  ConstantPool* cp JVM_TRAPS) {
   const int table_length = get_u2(JVM_SINGLE_ARG_CHECK_0);
@@ -1009,7 +1227,10 @@ ClassFileParser::parse_method(ClassParserState *state, ConstantPool* cp,
 
       // Stackmaps
       stackmaps = parse_code_attributes(cp, max_stack, max_locals,
-                                        code_length, &line_var_table
+                                        code_length, &line_var_table,
+                                        state->major_version(),
+                                        access_flags.is_static(),
+                                        &name, &signature
                                         JVM_CHECK_0);
     } else if (method_attribute_name.equals(Symbols::tag_exceptions())) {
       cpf_check_0(!parsed_checked_exceptions_attribute, 
@@ -1152,7 +1373,9 @@ ClassFileParser::parse_method(ClassParserState *state, ConstantPool* cp,
 // Parse the attributes contained by a method's Code attribute.
 inline ReturnOop ClassFileParser::parse_code_attributes(ConstantPool* cp,
                    jushort max_stack, jushort max_locals, juint code_length,
-                   LineVarTable *line_var_table JVM_TRAPS)
+                   LineVarTable *line_var_table, int major_version,
+                   bool is_static, Symbol* method_name,
+                   Symbol* method_signature JVM_TRAPS)
 {
   UsingFastOops fast_oops;
   ObjArray::Fast stackmaps;
@@ -1225,7 +1448,28 @@ inline ReturnOop ClassFileParser::parse_code_attributes(ConstantPool* cp,
 #else
     (void)line_var_table;
 #endif
-    if (attribute_name_sym.equals(Symbols::tag_stackmap())) {
+    if (major_version >= JAVA_STACKMAPTABLE_VERSION &&
+        attribute_name_sym.equals(Symbols::tag_stackmap_table())) {
+      if (stackmaps.not_null()) {
+        classfile_parse_error(duplicate_stackmap_attribute 
+                              JVM_NO_CHECK_AT_BOTTOM);
+        return 0;
+      }
+      const int start_position = get_buffer_position();
+      stackmaps = parse_stackmap_table(cp, max_stack, max_locals, code_length,
+                                       is_static, method_name,
+                                       method_signature JVM_CHECK_0);
+      if ((juint)(get_buffer_position() - start_position)
+          != attribute_length) {
+        classfile_parse_error(bad_stackmap_attribute_size 
+                              JVM_NO_CHECK_AT_BOTTOM);
+        return 0;
+      }
+#if ENABLE_ROM_GENERATOR
+      _total_stackmap_bytes += attribute_length;
+#endif
+    } else if (major_version < JAVA_STACKMAPTABLE_VERSION &&
+               attribute_name_sym.equals(Symbols::tag_stackmap())) {
       // parse for the stackmap attribute
       if (stackmaps.not_null()) {
         // Duplicate stackmap attribute
@@ -1780,6 +2024,9 @@ ReturnOop ClassFileParser::parse_class_internal(ClassParserState *stack JVM_TRAP
   AccessFlags access_flags;
   access_flags.set_flags(state().access_flags() & 
                          (JVM_RECOGNIZED_CLASS_MODIFIERS | JVM_ACC_PRELOADED));
+  if (state().major_version() >= JAVA_LDC_CLASS_VERSION) {
+    access_flags.set_is_ldc_class_allowed();
+  }
 
   Symbol::Fast class_name = name();
   Symbol::Fast super_class_name;

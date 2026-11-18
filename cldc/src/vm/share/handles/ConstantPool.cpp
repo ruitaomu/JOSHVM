@@ -375,6 +375,32 @@ BasicType ConstantPool::field_type_at(int index, int& offset, bool is_static,
   }
 }
 
+// java.lang.Object has no clone() in this library, but javac compiles
+// clone() on an array (and the values() method of every enum) to an
+// invokevirtual whose method reference is owned by the array class.
+// Returns the VM-internal method that copies an array if <index> is such a
+// reference, NULL if it is any other method reference.
+ReturnOop ConstantPool::array_clone_method_at(int index JVM_TRAPS) {
+  UsingFastOops fast_oops;
+  Symbol::Fast name, signature, owner_name;
+  resolve_helper(index, &name, &signature, &owner_name JVM_CHECK_0);
+  if (!name.equals(Symbols::clone_name()) ||
+      !signature.equals(Symbols::void_java_lang_Object_signature())) {
+    return NULL;
+  }
+  JavaClass::Fast owner = klass_ref_at(index JVM_CHECK_0);
+  if (owner().is_instance_class()) {
+    return NULL;
+  }
+  InstanceClass::Fast jvm_class = Universe::jvm_class()->obj();
+  Method::Fast method = jvm_class().lookup_method(Symbols::clone_array_name(),
+                                                  &signature);
+  if (method.is_null()) {
+    Throw::no_such_method_error(JVM_SINGLE_ARG_THROW_0);
+  }
+  return method.obj();
+}
+
 /// Look up a Method for invoke_static, invoke_special and invoke_virtual.
 /// Note that invoke_interface uses an alternate lookup routine.
 ReturnOop
@@ -390,7 +416,20 @@ ConstantPool::lookup_method_at(InstanceClass *sender_class, int index,
   }
   GUARANTEE(tag_at(index).is_method(), "Corrupted constant pool");
 
-  resolve_helper(index, name, signature, static_receiver_class JVM_CHECK_0);
+  {
+    // Checks the reference and gets name and signature without touching
+    // the owner class, which need not be an InstanceClass: a method
+    // reference may name an array class, whose methods are those of
+    // java.lang.Object.
+    Symbol::Fast owner_name;
+    resolve_helper(index, name, signature, &owner_name JVM_CHECK_0);
+    JavaClass::Raw owner = klass_ref_at(index JVM_CHECK_0);
+    if (owner().is_instance_class()) {
+      *static_receiver_class = owner.obj();
+    } else {
+      *static_receiver_class = Universe::object_class()->obj();
+    }
+  }
 
   Method::Fast m = static_receiver_class->lookup_method(name, signature);
   if (m.is_null()) {
@@ -550,9 +589,16 @@ bool ConstantPool::resolve_invoke_virtual_at(InstanceClass *sender_class,
 
   Symbol::Fast method_name, method_signature;
   InstanceClass::Fast static_receiver_class;
-  Method::Fast method = lookup_method_at(sender_class, index, &method_name,
-                                   &method_signature, &static_receiver_class
-                                   JVM_OZCHECK(method));
+  Method::Fast method = array_clone_method_at(index JVM_CHECK_0);
+  if (method.not_null()) {
+    // Final, so it is bound statically like any other final method
+    resolved_static_method_at_put(index, &method);
+    return true;
+  }
+
+  method = lookup_method_at(sender_class, index, &method_name,
+                            &method_signature, &static_receiver_class
+                            JVM_OZCHECK(method));
 
   if (static_receiver_class().is_interface()) {
     Throw::incompatible_class_change_error(class_changed JVM_THROW_0);

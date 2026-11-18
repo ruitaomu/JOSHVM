@@ -108,6 +108,12 @@ void BytecodeCompileClosure::push_obj(Oop* value JVM_TRAPS) {
   frame_push(v);
 }
 
+// The class object depends on the current task and may have to be created,
+// so compiled code leaves this bytecode to the interpreter.
+void BytecodeCompileClosure::push_class_constant(int /*cp_index*/ JVM_TRAPS) {
+  __ uncommon_trap(JVM_SINGLE_ARG_NO_CHECK_AT_BOTTOM);
+}
+
 void BytecodeCompileClosure::push_float(jfloat value JVM_TRAPS) {
   JVM_IGNORE_TRAPS;
 #if ENABLE_FLOAT

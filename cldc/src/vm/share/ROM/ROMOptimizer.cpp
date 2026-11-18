@@ -1742,6 +1742,13 @@ public:
     (void)value;
     push1();
   }
+  virtual void push_class_constant(int cp_index JVM_TRAPS) {
+    // The bytecode is left alone (see ldc_class() in InterpreterRuntime),
+    // but the ConstantPoolRewriter needs its class constant resolved.
+    UsingFastOops fast_oops;
+    ConstantPool::Fast cp = method()->constants();
+    cp().klass_at(cp_index JVM_NO_CHECK_AT_BOTTOM);
+  }
   virtual void push_long(jlong value JVM_TRAPS) { 
     JVM_IGNORE_TRAPS;
     (void)value;

@@ -338,6 +338,8 @@ PRODUCT_CONST Bytecodes::BytecodeData Bytecodes::data[] = {
   def(fast_init_2_getstatic     , 3, "bjj"  , 0, ""      , Exceptions),
   def(fast_init_invokestatic    , 3, "bjj"  , 0, ""      , Exceptions | NoPatching),
   def(fast_init_new             , 3, "bii"  , 0, ""      , Exceptions | NoPatching),
+  def(fast_class_ldc            , 2, "bi"   , 0, ""      , Exceptions | NoPatching | NeedsFrameExARM),
+  def(fast_class_ldc_w          , 3, "bii"  , 0, ""      , Exceptions | NoPatching | NeedsFrameExARM),
 
 #if USE_DEBUG_PRINTING
   {0, 0, 0, 0, 0, 0}

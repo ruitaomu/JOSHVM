@@ -49,6 +49,8 @@ enum {
                                                 // compiled code factor
 
   // Flags used by classes
+  JVM_ACC_LDC_CLASS_ALLOWED       = (1 << 21),  // class file version allows
+                                                // ldc of a class constant
   JVM_ACC_HIDDEN                  = (1 << 22),  // class is hidden from the 
                                                 // loaded classes, and only 
                                                 // available to ROMized ones
@@ -150,6 +152,9 @@ class AccessFlags {
   }
   bool is_hidden() const {
     return (_flags & JVM_ACC_HIDDEN) != 0;
+  }
+  bool is_ldc_class_allowed() const {
+    return (_flags & JVM_ACC_LDC_CLASS_ALLOWED) != 0;
   }
   bool has_vanilla_constructor() const {
     return (_flags & JVM_ACC_HAS_VANILLA_CONSTRUCTOR) != 0;
@@ -306,6 +311,9 @@ class AccessFlags {
   }
   void set_is_hidden() {
     atomic_set_bits(JVM_ACC_HIDDEN);
+  }
+  void set_is_ldc_class_allowed() {
+    atomic_set_bits(JVM_ACC_LDC_CLASS_ALLOWED);
   }
 
   void clear_has_monitor_bytecodes()   {

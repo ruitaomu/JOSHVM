@@ -773,7 +773,12 @@ inline intptr_t align_size_down(intptr_t size, intptr_t alignment) {
 // Miscellaneous
 
 #define JAVA_MIN_SUPPORTED_VERSION           45
-#define JAVA_MAX_SUPPORTED_VERSION           48
+#define JAVA_MAX_SUPPORTED_VERSION           51
+// Class files of this version and later carry a StackMapTable attribute
+// instead of the CLDC StackMap attribute.
+#define JAVA_STACKMAPTABLE_VERSION           50
+// First version in which ldc/ldc_w may load a CONSTANT_Class.
+#define JAVA_LDC_CLASS_VERSION               49
 
 #ifdef ARM
 #define RESCHEDULE_COUNT 0x8000
@@ -1464,6 +1469,8 @@ typedef class OopDesc* ReturnOop;
                                    " object") \
  template(ve_bad_instr,            "Illegal byte code (possibly an optimized" \
                                    " or fast bytecode)") \
+ template(ve_ldc_class_version,    "ldc of a class constant requires class" \
+                                   " file version 49") \
  template(ve_expect_array,         "Arraylength on non-array") \
  template(ve_multianewarray,       "Bad dimension of constant pool for" \
                                    " multianewarray") \
@@ -1529,6 +1536,10 @@ typedef class OopDesc* ReturnOop;
                                    "Duplicate StackMap attribute") \
  template(bad_stackmap_attribute_size, \
                                    "Bad Stackmap attribute size") \
+ template(bad_stackmap_frame_type, "Bad StackMapTable - unknown frame type") \
+ template(bad_stackmap_offset,     "Bad StackMapTable - offset out of range") \
+ template(invokedynamic_not_supported, \
+                                   "invokedynamic is not supported") \
  template(duplicate_exception_table, \
                                    "Duplicate exception table in .class" \
                                    " file") \

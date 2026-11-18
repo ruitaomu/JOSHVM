@@ -1034,6 +1034,10 @@ void Method::check_bytecodes(JVM_SINGLE_ARG_TRAPS) {
       // This is the slow path. We need to sync up bci with bcptr
       bci = (bcptr - bcstart);
 
+      if (code == Bytecodes::_xxxunusedxxx) {
+        // 0xba is invokedynamic from class file version 51 on
+        goto error_invokedynamic;
+      }
       if (code >= Bytecodes::_breakpoint ||!Bytecodes::is_defined(code)) {
         // User code should never have breakpoint or any of the fast bytecodes
         goto error;
@@ -1160,6 +1164,9 @@ void Method::check_bytecodes(JVM_SINGLE_ARG_TRAPS) {
 
 error:
   Throw::class_format_error(illegal_code JVM_THROW);
+
+error_invokedynamic:
+  Throw::class_format_error(invokedynamic_not_supported JVM_THROW);
 
 error_wide:
   Throw::class_format_error(illegal_wide_code JVM_THROW);
@@ -1333,6 +1340,8 @@ void Method::iterate_push_constant_1(int i, BytecodeClosure* blk JVM_TRAPS) {
     UsingFastOops internal;
     Oop::Fast string = c().string_at(i JVM_CHECK);
     blk->push_obj(&string JVM_NO_CHECK_AT_BOTTOM);
+  } else if (ConstantTag::is_klass(tag)) {
+    blk->push_class_constant(i JVM_NO_CHECK_AT_BOTTOM);
   } else {
     blk->illegal_code(JVM_SINGLE_ARG_NO_CHECK_AT_BOTTOM);
   }

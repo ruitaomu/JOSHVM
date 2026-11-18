@@ -224,7 +224,7 @@ include $(JSR280_DIR)/makefiles/classpath.make
 JOSH_BUILD_MODULES += jsr280
 endif
 
-JAVA_FILES=$(shell echo >&2 Finding .java files ...; \
+BASE_JAVA_FILES=$(shell echo >&2 Finding .java files ...; \
   find \
   $(JSR_JAVA_FILES_DIR)                   \
   $(JVMWorkSpace)/src/javaapi/$(CLDC_LIB) \
@@ -237,6 +237,21 @@ JAVA_FILES=$(shell echo >&2 Finding .java files ...; \
      -name j2se -prune -o                 \
      -name '*.java' -print;               \
   echo >&2 '   done')
+
+# ENABLE_CLDC_8 builds the class library at the Java 7 language level
+# (see docs/design/javame8-upgrade.md). The library is $(CLDC_LIB) plus the
+# files under src/javaapi/cldc8; a file there replaces the $(CLDC_LIB) file
+# with the same package path. CLDC8_ALSO_REPLACED lists the sources in
+# other modules that define a class cldc8 provides.
+ifeq ($(ENABLE_CLDC_8), true)
+CLDC8_DIR      := $(JVMWorkSpace)/src/javaapi/cldc8
+CLDC8_FILES    := $(shell find $(CLDC8_DIR) -name '*.java' 2>/dev/null)
+CLDC8_REPLACED := $(patsubst $(CLDC8_DIR)/%,$(JVMWorkSpace)/src/javaapi/$(CLDC_LIB)/%,$(CLDC8_FILES))
+CLDC8_ALSO_REPLACED := $(DIO_DIR)/src/classes/java/lang/Comparable.java
+JAVA_FILES      = $(filter-out $(CLDC8_REPLACED) $(CLDC8_ALSO_REPLACED),$(BASE_JAVA_FILES)) $(CLDC8_FILES)
+else
+JAVA_FILES      = $(BASE_JAVA_FILES)
+endif
 
 all: $(OUTDIR) $(CLASSES)
 all: debug release product
@@ -425,6 +440,19 @@ $(OUTDIR)/tools/Makefile:
 	$(A)echo 'include $(SHAREDIR)/tools.make'             >> $@
 	$(A)echo created $@
 
+# The .java file list is too long to pass through a shell command line
+# (single-argument limit), so it is written with $(file) and included by
+# the generated Makefiles. Requires GNU make 4.0 or later.
+JAVA_FILES_MK = $(OUTDIR)/java_files.mk
+
+.PHONY: $(JAVA_FILES_MK)
+$(JAVA_FILES_MK):
+	$(file >$@,JAVA_FILES=$(JAVA_FILES))
+
+$(OUTDIR)/romgen/app/Makefile $(OUTDIR)/loopgen/app/Makefile \
+$(OUTDIR)/target/debug/Makefile $(OUTDIR)/target/release/Makefile \
+$(OUTDIR)/target/product/Makefile: | $(JAVA_FILES_MK)
+
 $(OUTDIR)/romgen/app/Makefile:
 	$(A)if test ! -d $(OUTDIR)/romgen/app; then \
 		mkdir -p $(OUTDIR)/romgen/app; \
@@ -441,7 +469,7 @@ $(OUTDIR)/romgen/app/Makefile:
 	$(A)echo 'IsRomGen=true'                              >> $@
 	$(A)echo 'BUILD=$(ROMGEN_BUILD)'                      >> $@
 	$(A)echo 'CLDC_LIB=$(CLDC_LIB)'                       >> $@
-	$(A)echo 'JAVA_FILES=$(JAVA_FILES)'                   >> $@
+	$(A)echo 'include $(JAVA_FILES_MK)'                   >> $@
 	$(A)echo ''                                           >> $@
 	$(A)echo 'default:: all'                              >> $@
 	$(A)echo ''                                           >> $@
@@ -466,7 +494,7 @@ $(OUTDIR)/loopgen/app/Makefile:
 	$(A)echo 'IsLoopGen=true'                             >> $@
 	$(A)echo 'BUILD=${LOOPGEN_BUILD}'                     >> $@
 	$(A)echo 'CLDC_LIB=$(CLDC_LIB)'                       >> $@
-	$(A)echo 'JAVA_FILES=$(JAVA_FILES)'                   >> $@
+	$(A)echo 'include $(JAVA_FILES_MK)'                   >> $@
 	$(A)echo ''                                           >> $@
 	$(A)echo 'default:: all'                              >> $@
 	$(A)echo ''                                           >> $@
@@ -490,7 +518,7 @@ $(OUTDIR)/target/debug/Makefile:
 	$(A)echo 'IsTarget=true'                              >> $@
 	$(A)echo 'BUILD=debug'                                >> $@
 	$(A)echo 'CLDC_LIB=$(CLDC_LIB)'                       >> $@
-	$(A)echo 'JAVA_FILES=$(JAVA_FILES)'                   >> $@
+	$(A)echo 'include $(JAVA_FILES_MK)'                   >> $@
 	$(A)echo ''                                           >> $@
 	$(A)echo 'default:: all'                              >> $@
 	$(A)echo ''                                           >> $@
@@ -514,7 +542,7 @@ $(OUTDIR)/target/release/Makefile:
 	$(A)echo 'IsTarget=true'                              >> $@
 	$(A)echo 'BUILD=release'                              >> $@
 	$(A)echo 'CLDC_LIB=$(CLDC_LIB)'                       >> $@
-	$(A)echo 'JAVA_FILES=$(JAVA_FILES)'                   >> $@
+	$(A)echo 'include $(JAVA_FILES_MK)'                   >> $@
 	$(A)echo ''                                           >> $@
 	$(A)echo 'default:: all'                              >> $@
 	$(A)echo ''                                           >> $@
@@ -538,7 +566,7 @@ $(OUTDIR)/target/product/Makefile:
 	$(A)echo 'IsTarget=true'                              >> $@
 	$(A)echo 'BUILD=product'                              >> $@
 	$(A)echo 'CLDC_LIB=$(CLDC_LIB)'                       >> $@
-	$(A)echo 'JAVA_FILES=$(JAVA_FILES)'                   >> $@
+	$(A)echo 'include $(JAVA_FILES_MK)'                   >> $@
 	$(A)echo ''                                           >> $@
 	$(A)echo 'default:: all'                              >> $@
 	$(A)echo ''                                           >> $@

@@ -25,6 +25,7 @@ extern "C" {
     
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/mman.h>
 
 
 #include "javacall_memory.h"
@@ -41,16 +42,22 @@ extern "C" {
  * @return  a pointer to the newly allocated memory,
  *          or <tt>NULL</tt> if not available
  */
+/* The Java heap also holds JIT-compiled code, so it must be executable;
+ * malloc memory is not on current kernels. The heap is allocated once per
+ * VM run, so its size is kept in a static for munmap. */
+static long heap_map_size = 0;
+
 void* javacall_memory_heap_allocate(long size, long* outSize) {
 
-    void *ptr = NULL;
+    void *ptr = mmap(NULL, (size_t)size, PROT_READ | PROT_WRITE | PROT_EXEC,
+                     MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 
-    ptr = malloc(size);
-    if (ptr == NULL){
+    if (ptr == MAP_FAILED){
         *outSize = 0;
-    } else {
-        *outSize = size;
+        return NULL;
     }
+    heap_map_size = size;
+    *outSize = size;
     return ptr;
 }
 
@@ -63,7 +70,9 @@ void* javacall_memory_heap_allocate(long size, long* outSize) {
  */
 void javacall_memory_heap_deallocate(void* heap) {
 
-    free(heap);
+    if (heap != NULL) {
+        munmap(heap, (size_t)heap_map_size);
+    }
 }
 
 /**

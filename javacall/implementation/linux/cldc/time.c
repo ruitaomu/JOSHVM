@@ -22,6 +22,8 @@
 #include <sys/timeb.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <errno.h>
+#include <time.h>
 
 
 typedef struct {
@@ -29,22 +31,50 @@ typedef struct {
 	int wakeupInMilliSecondsFromNow;
 	pthread_t pid;
 	javacall_bool cyclic;
+	pthread_mutex_t lock;
+	pthread_cond_t cond;
+	int stop;
 } timer_arg;
+
+/* Waits for the timer period. Returns non-zero if the timer was stopped.
+ * Must be called with t->lock held. */
+static int timer_wait(timer_arg *t) {
+	struct timespec deadline;
+	long ms = t->wakeupInMilliSecondsFromNow;
+
+	clock_gettime(CLOCK_REALTIME, &deadline);
+	deadline.tv_sec += ms / 1000;
+	deadline.tv_nsec += (ms % 1000) * 1000000L;
+	if (deadline.tv_nsec >= 1000000000L) {
+		deadline.tv_sec++;
+		deadline.tv_nsec -= 1000000000L;
+	}
+	while (!t->stop) {
+		if (pthread_cond_timedwait(&t->cond, &t->lock, &deadline) == ETIMEDOUT) {
+			break;
+		}
+	}
+	return t->stop;
+}
 
 void *timer_thrd_func(void *arg){	
 	timer_arg *t = (timer_arg*)arg;
-	int wakeupInMilliSecondsFromNow = t->wakeupInMilliSecondsFromNow;
 	javacall_callback_func func = t->func;
 	javacall_bool cyclic = t->cyclic;
 
+	pthread_mutex_lock(&t->lock);
 	do {
-		pthread_testcancel();
-		usleep(wakeupInMilliSecondsFromNow*1000);
-		pthread_testcancel();
+		if (timer_wait(t)) {
+			break;
+		}
+		pthread_mutex_unlock(&t->lock);
 		if (func) {
 			func((javacall_handle)arg);
 		}
-	} while (cyclic);
+		pthread_mutex_lock(&t->lock);
+	} while (cyclic && !t->stop);
+	pthread_mutex_unlock(&t->lock);
+	return NULL;
 }
 
 /**
@@ -86,8 +116,13 @@ javacall_result javacall_time_initialize_timer(
   t->wakeupInMilliSecondsFromNow = wakeupInMilliSecondsFromNow;
   t->func = func;
   t->cyclic = cyclic;
+  t->stop = 0;
+  pthread_mutex_init(&t->lock, NULL);
+  pthread_cond_init(&t->cond, NULL);
 	
   if (pthread_create(&tid, NULL, timer_thrd_func, (void*)t)!=0) {
+  	pthread_cond_destroy(&t->cond);
+  	pthread_mutex_destroy(&t->lock);
   	javacall_free(t);
   	return JAVACALL_FAIL;
   }
@@ -110,9 +145,16 @@ javacall_result javacall_time_initialize_timer(
  */
 javacall_result javacall_time_finalize_timer(javacall_handle handle) {
 
-	pthread_t pid = (pthread_t)((timer_arg*)handle)->pid;
-	pthread_cancel(pid);
+	timer_arg *t = (timer_arg*)handle;
+	pthread_t pid = t->pid;
+
+	pthread_mutex_lock(&t->lock);
+	t->stop = 1;
+	pthread_cond_signal(&t->cond);
+	pthread_mutex_unlock(&t->lock);
 	pthread_join(pid, NULL);
+	pthread_cond_destroy(&t->cond);
+	pthread_mutex_destroy(&t->lock);
 	javacall_free((void*)handle);
 	
 	return JAVACALL_OK;

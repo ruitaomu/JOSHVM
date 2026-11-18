@@ -105,6 +105,11 @@ void BytecodePrintClosure::push_obj(Oop* value JVM_TRAPS) {
   value->print_value_on(_st);
 }
 
+void BytecodePrintClosure::push_class_constant(int cp_index JVM_TRAPS) { 
+  JVM_IGNORE_TRAPS;
+  _st->print("class #%d", cp_index);
+}
+
 void BytecodePrintClosure::load_local(BasicType kind, int index JVM_TRAPS) {
   JVM_IGNORE_TRAPS;
   (void)kind;

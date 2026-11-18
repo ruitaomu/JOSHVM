@@ -293,6 +293,29 @@ extern "C" {
   }
 #endif
 
+  // ldc/ldc_w of a class constant: returns the java.lang.Class object.
+  // The class is loaded and linked but not initialized.
+  OopDesc* ldc_class(JVM_SINGLE_ARG_TRAPS) {
+    UsingFastOops fast_oops;
+
+    JavaFrame frame(Thread::current());
+    Method::Fast method = frame.method();
+    const int bci = frame.bci();
+    const int index = (method().bytecode_at(bci) == Bytecodes::_ldc)
+                        ? method().ubyte_at(bci + 1)
+                        : method().get_java_ushort(bci + 1);
+    ConstantPool::Fast cp = method().constants();
+    JavaClass::Fast klass = cp().klass_at(index JVM_CHECK_0);
+    InstanceClass::Fast sender_class = method().holder();
+    klass().check_access_by(&sender_class, ErrorOnFailure JVM_CHECK_0);
+
+#if ENABLE_ISOLATES
+    return klass().get_or_allocate_java_mirror(JVM_SINGLE_ARG_NO_CHECK);
+#else
+    return klass().java_mirror();
+#endif
+  }
+
   OopDesc* anewarray(JVM_SINGLE_ARG_TRAPS) {
     UsingFastOops fast_oops;
     
@@ -758,6 +781,10 @@ extern "C" {
     case Bytecodes::_ldc: {
         jint index = method.ubyte_at(bci+1);
         ConstantTag tag = cp().tag_at(index);
+        if (tag.is_klass()) {
+          // Not rewritten: see ldc_class()
+          return Bytecodes::_fast_class_ldc;
+        }
         // Resolve the constant pool entry.
         if (tag.is_unresolved_string()) {
           cp().string_at(index JVM_CHECK_(Bytecodes::_illegal));
@@ -777,6 +804,10 @@ extern "C" {
     case Bytecodes::_ldc_w: {
         jushort index = method.get_java_ushort(bci + 1);
 
+        if (cp().tag_at(index).is_klass()) {
+          // Not rewritten: see ldc_class()
+          return Bytecodes::_fast_class_ldc_w;
+        }
         // Resolve the constant pool entry.
         if (cp().tag_at(index).is_unresolved_string()) {
           cp().string_at(index JVM_CHECK_(Bytecodes::_illegal));

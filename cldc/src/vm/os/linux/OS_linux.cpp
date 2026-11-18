@@ -950,10 +950,12 @@ void Os::initialize() {
   // results can be unpredictable if we'll modify stack in
   // Java heap and VM will not know. We handle signals either when
   // using SIGVTALRM, or when printing pss() in case of a crash.
+  // MINSIGSTKSZ is no longer a compile-time constant in glibc >= 2.34,
+  // so use a fixed size that is comfortably above it.
 # if defined(PRODUCT)
-# define ALT_STACK_SIZE (MINSIGSTKSZ)
+# define ALT_STACK_SIZE (16 * 1024)
 # else
-# define ALT_STACK_SIZE (MINSIGSTKSZ + 2048)
+# define ALT_STACK_SIZE (16 * 1024 + 2048)
 # endif
 
   static char alt_stack_buf[ALT_STACK_SIZE];

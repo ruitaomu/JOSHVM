@@ -1,0 +1,19 @@
+name: Build and test Linux i386
+
+# Manual trigger only: this workflow has not run yet. Switch to
+# push/pull_request once a run is green.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build -t joshvm-build-linux-i386 tools/docker/linux-i386
+      - name: Build VM and run tests
+        run: docker run --rm -v "$PWD":/src joshvm-build-linux-i386

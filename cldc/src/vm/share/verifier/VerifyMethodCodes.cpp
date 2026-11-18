@@ -401,6 +401,14 @@ void VerifyMethodCodes::push_obj(Oop* value JVM_TRAPS) {
   }
 }
 
+void VerifyMethodCodes::push_class_constant(int /*cp_index*/ JVM_TRAPS) {
+  InstanceClass::Raw holder = method()->holder();
+  if (!holder().access_flags().is_ldc_class_allowed()) {
+    VFY_ERROR(ve_ldc_class_version);
+  }
+  frame()->push_object(Symbols::java_lang_Class() JVM_NO_CHECK_AT_BOTTOM);
+}
+
 void VerifyMethodCodes::load_local(BasicType kind, int index JVM_TRAPS)  {
   if (kind == T_OBJECT) {
     UsingFastOops fast_oops;

@@ -122,12 +122,14 @@ void TemplateTable::initialize_00(SourceMacros* assembler) {
   def_0(Bytecodes::_sipush,
         align_code_base,
         bc_sipush);
+  // ldc and ldc_w dispatch on the bytecode quicken() returns: a class
+  // constant is handled by _fast_class_ldc without rewriting the method.
   def_1(Bytecodes::_ldc,
         does_dispatch,
-        bc_call_vm_redo, "quicken");
+        bc_call_vm_dispatch, "quicken");
   def_1(Bytecodes::_ldc_w,
         does_dispatch,
-        bc_call_vm_redo, "quicken");
+        bc_call_vm_dispatch, "quicken");
   def_1(Bytecodes::_ldc2_w,
         does_dispatch,
         bc_call_vm_redo, "quicken");
@@ -970,6 +972,12 @@ void TemplateTable::initialize_fast(SourceMacros* assembler) {
   def_0(Bytecodes::_fast_invokespecial,
         align_code_base,
         bc_fast_invokespecial);
+  def_1(Bytecodes::_fast_class_ldc,
+        no_options,
+        bc_fast_class_ldc, false);
+  def_1(Bytecodes::_fast_class_ldc_w,
+        no_options,
+        bc_fast_class_ldc, true);
 
 
   // Wide Java spec bytecodes             Dispatches    Must align    Generator          Argument
@@ -1093,11 +1101,10 @@ void TemplateTable::initialize_duplicates() {
   _duplicates[Bytecodes::_dload_safe]   = Bytecodes::_lload;
   _duplicates[Bytecodes::_dstore_safe]  = Bytecodes::_lstore;  
 #endif //#if !ENABLE_CPU_VARIANT  
-  // The following are all just "quicken"
+  // The following are all just "quicken" and redo
   _duplicates[Bytecodes::_ldc_w]          = Bytecodes::_ldc;
-  _duplicates[Bytecodes::_ldc2_w]         = Bytecodes::_ldc;
-  _duplicates[Bytecodes::_invokevirtual]  = Bytecodes::_ldc;
-  _duplicates[Bytecodes::_invokespecial]  = Bytecodes::_ldc;
+  _duplicates[Bytecodes::_invokevirtual]  = Bytecodes::_ldc2_w;
+  _duplicates[Bytecodes::_invokespecial]  = Bytecodes::_ldc2_w;
 } 
 
 void TemplateTable::def(Bytecodes::Code code, Template* t) {
