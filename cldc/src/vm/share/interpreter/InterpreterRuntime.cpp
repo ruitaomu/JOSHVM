@@ -316,6 +316,22 @@ extern "C" {
 #endif
   }
 
+#if ENABLE_COMPILER
+  // The same for compiled code, which has resolved the class and checked
+  // the access to it.
+  OopDesc* compiled_code_ldc_class(Thread* /*thread*/, int class_id
+                                   JVM_TRAPS) {
+    UsingFastOops fast_oops;
+    JavaClass::Fast klass = Universe::class_from_id(class_id);
+#if ENABLE_ISOLATES
+    return klass().get_or_allocate_java_mirror(JVM_SINGLE_ARG_NO_CHECK);
+#else
+    JVM_IGNORE_TRAPS;
+    return klass().java_mirror();
+#endif
+  }
+#endif
+
   OopDesc* anewarray(JVM_SINGLE_ARG_TRAPS) {
     UsingFastOops fast_oops;
     

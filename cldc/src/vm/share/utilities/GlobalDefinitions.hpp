@@ -2050,6 +2050,7 @@ extern "C" {
 
   OopDesc * multianewarray(JVM_SINGLE_ARG_TRAPS);
   OopDesc * newobject(JVM_SINGLE_ARG_TRAPS);
+  OopDesc * compiled_code_ldc_class(Thread* thread, int class_id JVM_TRAPS);
   OopDesc* _newobject(Thread* thread, OopDesc* raw_klass JVM_TRAPS);
 
   jlong jvm_lmul(jlong a, jlong b);
