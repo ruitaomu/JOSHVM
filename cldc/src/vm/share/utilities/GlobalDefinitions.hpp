@@ -1239,8 +1239,7 @@ extern jint global_check_count;
           return; \
         } \
         GUARANTEE(!CURRENT_HAS_PENDING_EXCEPTION,  \
-                    "JVM_ZCHECK sanity check 2"); \
-        _IGNORE_ME_(0
+                    "JVM_ZCHECK sanity check 2");
 
 #define JVM_SINGLE_ARG_ZCHECK_0(cond) \
           _traps_ptr); \
@@ -1251,8 +1250,7 @@ extern jint global_check_count;
           return 0; \
         } \
         GUARANTEE(!CURRENT_HAS_PENDING_EXCEPTION,  \
-                    "JVM_ZCHECK sanity check 2"); \
-        _IGNORE_ME_(0
+                    "JVM_ZCHECK sanity check 2");
 
 #define JVM_ZCHECK(cond)                  , JVM_SINGLE_ARG_ZCHECK(cond)
 #define JVM_ZCHECK_0(cond)                , JVM_SINGLE_ARG_ZCHECK_0(cond)
@@ -1265,28 +1263,24 @@ extern jint global_check_count;
         INC_COUNTER; \
         if (CURRENT_HAS_PENDING_EXCEPTION) { \
           return; \
-        } \
-        _IGNORE_ME_(0
+        }
 
 #define JVM_SINGLE_ARG_CHECK_(result) \
           _traps_ptr); \
         INC_COUNTER; \
         if (CURRENT_HAS_PENDING_EXCEPTION) { \
           return result; \
-        } \
-        _IGNORE_ME_(0
+        }
 
 #define JVM_SINGLE_ARG_THROW \
           _traps_ptr); \
         INC_COUNTER; \
-        return; \
-        _IGNORE_ME_(0
+        return;
 
 #define JVM_SINGLE_ARG_THROW_(result) \
           _traps_ptr); \
         INC_COUNTER; \
-        return result; \
-        _IGNORE_ME_(0
+        return result;
 
 // The JVM_CHECK... macros should be used to pass along a THREAD reference and to
 // check for pending exceptions.
@@ -1324,10 +1318,10 @@ extern jint global_check_count;
 // future changes, JVM_NO_CHECK_AT_BOTTOM should be used instead of
 // THREAD.
 
-#define JVM_NO_CHECK_AT_BOTTOM              , _traps_ptr); _IGNORE_ME_(0
-#define JVM_SINGLE_ARG_NO_CHECK_AT_BOTTOM   _traps_ptr);   _IGNORE_ME_(0
+#define JVM_NO_CHECK_AT_BOTTOM              , _traps_ptr)
+#define JVM_SINGLE_ARG_NO_CHECK_AT_BOTTOM   _traps_ptr)
 
-#define JVM_NO_CHECK_AT_BOTTOM_0            , _traps_ptr); _IGNORE_ME_(0
+#define JVM_NO_CHECK_AT_BOTTOM_0            , _traps_ptr)
 
 #define JVM_NO_CHECK                        JVM_NO_CHECK_AT_BOTTOM
 #define JVM_SINGLE_ARG_NO_CHECK             JVM_SINGLE_ARG_NO_CHECK_AT_BOTTOM
@@ -1348,15 +1342,13 @@ extern jint global_check_count;
           ); \
         if (!(cond)) { \
           return; \
-        } \
-        _IGNORE_ME_(0
+        }
 
 #define JVM_SINGLE_ARG_ZCHECK_0(cond) \
           ); \
         if (!(cond)) { \
           return 0; \
-        } \
-        _IGNORE_ME_(0
+        }
 
 #define JVM_ZCHECK(cond)                  JVM_SINGLE_ARG_ZCHECK(cond)
 #define JVM_ZCHECK_0(cond)                JVM_SINGLE_ARG_ZCHECK_0(cond)
@@ -1370,25 +1362,21 @@ extern jint global_check_count;
           ); \
         if (CURRENT_HAS_PENDING_EXCEPTION) { \
           return; \
-        } \
-        _IGNORE_ME_(0
+        }
 
 #define JVM_SINGLE_ARG_CHECK_(result) \
           ); \
         if (CURRENT_HAS_PENDING_EXCEPTION) { \
           return result;  \
-        } \
-        _IGNORE_ME_(0
+        }
 
 #define JVM_SINGLE_ARG_THROW \
           ); \
-        return; \
-        _IGNORE_ME_(0
+        return;
 
 #define JVM_SINGLE_ARG_THROW_(result) \
           ); \
-        return result; \
-        _IGNORE_ME_(0
+        return result;
 
 #define JVM_CHECK                      JVM_SINGLE_ARG_CHECK
 #define JVM_CHECK_(result)             JVM_SINGLE_ARG_CHECK_(result)
@@ -1422,13 +1410,11 @@ extern jint global_check_count;
 
 #define JVM_MUST_SUCCEED \
         JVM_NO_CHECK); \
-        GUARANTEE(!CURRENT_HAS_PENDING_EXCEPTION, "must succeed"); \
-        _IGNORE_ME_(0
+        GUARANTEE(!CURRENT_HAS_PENDING_EXCEPTION, "must succeed");
 
 #define JVM_SINGLE_ARG_MUST_SUCCEED \
         JVM_SINGLE_ARG_NO_CHECK); \
-        GUARANTEE(!CURRENT_HAS_PENDING_EXCEPTION, "must succeed"); \
-        _IGNORE_ME_(0
+        GUARANTEE(!CURRENT_HAS_PENDING_EXCEPTION, "must succeed");
 
 typedef class OopDesc* ReturnOop;
 
