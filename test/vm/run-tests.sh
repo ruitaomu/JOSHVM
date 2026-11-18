@@ -76,10 +76,22 @@ expect_pass() { # label classpath class
     for vm in $VMS; do
         for mode in "" "-int"; do
             output=`run_vm $vm "$mode" $2 $3`
+            status=$?
             if [ "`echo "$output" | tail -1 | tr -d '\r'`" = PASS ]; then
                 report ok "$1 [$vm $mode]"
             else
-                report fail "$1 [$vm $mode]" "$output"
+                detail="exit status $status
+$output"
+                case $vm in
+                  *_g*)
+                    # Debug VM: show how far the compiler got
+                    trace=`run_vm $vm "$mode +PrintCompilation +TraceUncommonTrap" $2 $3`
+                    detail="$detail
+--- last lines with +PrintCompilation +TraceUncommonTrap (exit status $?):
+`echo "$trace" | tail -30`"
+                    ;;
+                esac
+                report fail "$1 [$vm $mode]" "$detail"
             fi
         done
     done
