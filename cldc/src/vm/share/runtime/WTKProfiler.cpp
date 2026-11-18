@@ -353,14 +353,14 @@ void WTKProfiler::print(Stream* out, int id) {
       out->print("\t%d", rec->numCalls);
 
       // only cycles, only ms, only %
-      out->print("\t"JVM_LLD"\t"JVM_LLD"\t%.2lf", 
+      out->print("\t" JVM_LLD "\t" JVM_LLD "\t%.2lf", 
                  rec->thisTime, 
                  rec->thisTime * 1000 / freq,
                  perc_scale(rec->thisTime, _totalCycles)
                  ); 
 
       // plus kids cycles, plus kids ms, plus kids %
-      out->print("\t"JVM_LLD"\t"JVM_LLD"\t%.2lf", 
+      out->print("\t" JVM_LLD "\t" JVM_LLD "\t%.2lf", 
                  rec->totalTime,
                  rec->totalTime * 1000 / freq,
                  perc_scale(rec->totalTime, _totalCycles)
