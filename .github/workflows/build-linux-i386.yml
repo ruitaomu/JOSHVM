@@ -48,9 +48,14 @@ jobs:
               [Environment]::SetEnvironmentVariable($Matches[1], $Matches[2], "Process")
             }
           }
+          $clDir = Join-Path $env:VCToolsInstallDir "bin\Hostx64\x86"
+          $env:PATH = "$clDir;$env:PATH"
+          $env:MSYS2_PATH_TYPE = "inherit"
           C:\msys64\usr\bin\bash.exe --login -lc '
             pacman --noconfirm --needed -S make zip unzip findutils
             cd "$(cygpath -u "$GITHUB_WORKSPACE")"
+            command -v cl.exe
+            command -v link.exe
             export JDK_DIR="$(cygpath -m "$JAVA_HOME")"
             export ENABLE_CLDC_8=false
             ./build-win32-cldc.sh -C -J "$JDK_DIR"
