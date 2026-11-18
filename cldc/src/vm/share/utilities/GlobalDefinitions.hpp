@@ -1199,7 +1199,7 @@ inline jint construct_jint_from_jushorts(jushort high, jushort low) {
 }
 
 
-#define _IGNORE_ME_(x)
+#define _IGNORE_ME_(...)  /* intentionally empty */
 #define CURRENT_HAS_PENDING_EXCEPTION (jvm_fast_globals.current_pending_exception)
 
 #ifndef PRODUCT
