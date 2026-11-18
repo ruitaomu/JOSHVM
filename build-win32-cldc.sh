@@ -60,7 +60,9 @@ ENABLE_SECURITY=true
 ENABLE_SECURITY_NATIVE_RSA_SIGNATURE=false
 ENABLE_JSR280=true
 ENABLE_MEDIA=true
-BUILD_SDK=true
+# The SDK step builds the API documentation. Set BUILD_SDK=false in the
+# environment to skip it.
+: ${BUILD_SDK:=true}
 : ${ENABLE_CLDC_8:=false}
 export USE_CYGWIN=true
 

@@ -19,15 +19,11 @@
 # by tools/ClassPatcher; the VM must reject it with the expected message.
 
 ROOT=`cd \`dirname $0\`/../.. && pwd`
-HERE=$ROOT/test/vm
-OUT=$HERE/build
 case `uname -s 2>/dev/null` in
   CYGWIN*|MINGW*|MSYS*)
-    if [ -n "$GITHUB_WORKSPACE" ]; then
-      ROOT=`cygpath -u "$GITHUB_WORKSPACE" 2>/dev/null || pwd`
-    else
-      ROOT=`cd \`dirname $0\`/../.. && pwd`
-    fi
+    # javac, java and the VM are native Windows programs: give them
+    # C:/... paths, which the shell tools accept as well.
+    ROOT=`cygpath -m "$ROOT"`
     : ${VM_DIR:=$ROOT/cldc/build/javacall_i386_vc/dist/bin}
     : ${VMS:="cldc_vm_g.exe cldc_vm.exe"}
     : ${PREVERIFY:=$ROOT/cldc/build/javacall_i386_vc/dist/bin/preverify.exe}
@@ -40,7 +36,20 @@ case `uname -s 2>/dev/null` in
     HOST_PLATFORM=linux
     ;;
 esac
+HERE=$ROOT/test/vm
+OUT=$HERE/build
 : ${BOOT_CLASSES:=$ROOT/cldc/build/classes.zip}
+
+# Whether exit status $1 of the VM means it crashed. The VM exits with 0,
+# or with 255 after an uncaught exception. On Linux a crash is death by a
+# signal (128 + signal number); on Windows it is any other status.
+crashed() {
+    if [ $HOST_PLATFORM = win32 ]; then
+        [ $1 -ne 0 -a $1 -ne 255 ]
+    else
+        [ $1 -gt 128 -a $1 -lt 255 ]
+    fi
+}
 
 if [ -z "$JDK_DIR" ]; then
     echo "JDK_DIR must point to a JDK 8" >&2
@@ -90,7 +99,7 @@ expect_reject() { # label classpath class message
         status=$?
         if echo "$output" | grep -q "^PASS"; then
             report fail "$1 [$vm]" "not rejected: $output"
-        elif [ $status -gt 128 -a $status -lt 255 ]; then
+        elif crashed $status; then
             report fail "$1 [$vm]" "VM crashed (status $status): $output"
         elif echo "$output" | grep -q -- "$4"; then
             report ok "$1 [$vm]"
@@ -230,7 +239,7 @@ while [ $seed -le $FUZZ_COUNT ]; do
         $dir/StackMapFrames.class fuzzsmt $seed || exit 2
     output=`run_vm $fuzz_vm "" $dir StackMapFrames`
     status=$?
-    if [ $status -gt 128 -a $status -lt 255 ]; then
+    if crashed $status; then
         fuzz_crashes=`expr $fuzz_crashes + 1`
         echo "        seed $seed: VM crashed (status $status): $output"
     fi

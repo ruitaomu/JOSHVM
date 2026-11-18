@@ -24,6 +24,7 @@ jobs:
 
   win32-i386:
     runs-on: windows-latest
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
 
@@ -52,6 +53,7 @@ jobs:
           $env:PATH = "$clDir;$env:PATH"
           $env:MSYS2_PATH_TYPE = "inherit"
           C:\msys64\usr\bin\bash.exe --login -lc '
+            set -e
             pacman --noconfirm --needed -S make zip unzip findutils
             cd "$(cygpath -u "$GITHUB_WORKSPACE")"
             VC_BIN="$(cygpath -u "$VCToolsInstallDir")/bin/Hostx64/x86"
@@ -60,6 +62,8 @@ jobs:
             command -v cl.exe
             command -v link.exe
             export JDK_DIR="$(cygpath -m "$JAVA_HOME")"
+            # The API documentation does not pass the JDK 8 javadoc checks
+            export BUILD_SDK=false
             export ENABLE_CLDC_8=false
             ./build-win32-cldc.sh -C -J "$JDK_DIR"
             JDK_DIR="$JDK_DIR" test/vm/run-tests.sh
