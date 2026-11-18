@@ -27,13 +27,11 @@ case `uname -s 2>/dev/null` in
     : ${VM_DIR:=$ROOT/cldc/build/javacall_i386_vc/dist/bin}
     : ${VMS:="cldc_vm_g.exe cldc_vm.exe"}
     : ${PREVERIFY:=$ROOT/cldc/build/javacall_i386_vc/dist/bin/preverify.exe}
-    HOST_PLATFORM=win32
     ;;
   *)
     : ${VM_DIR:=$ROOT/cldc/build/javacall_i386_gcc/dist/bin}
     : ${VMS:="cldc_vm_g cldc_vm"}
     : ${PREVERIFY:=$ROOT/preverifier/build/linux/preverify}
-    HOST_PLATFORM=linux
     ;;
 esac
 HERE=$ROOT/test/vm
@@ -41,14 +39,11 @@ OUT=$HERE/build
 : ${BOOT_CLASSES:=$ROOT/cldc/build/classes.zip}
 
 # Whether exit status $1 of the VM means it crashed. The VM exits with 0,
-# or with 255 after an uncaught exception. On Linux a crash is death by a
-# signal (128 + signal number); on Windows it is any other status.
+# or with 255 after an uncaught exception. A crash is death by a signal
+# (128 + signal number) on Linux; the MSYS2 shell reports a Windows
+# exception code it does not know as 127.
 crashed() {
-    if [ $HOST_PLATFORM = win32 ]; then
-        [ $1 -ne 0 -a $1 -ne 255 ]
-    else
-        [ $1 -gt 128 -a $1 -lt 255 ]
-    fi
+    [ $1 -ge 127 -a $1 -lt 255 ]
 }
 
 if [ -z "$JDK_DIR" ]; then
