@@ -39,6 +39,15 @@ jobs:
       - name: Build and test Win32 i386
         shell: pwsh
         run: |
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $vsRoot = & $vswhere -latest -products * -property installationPath
+          $vsDevCmd = Join-Path $vsRoot "Common7\Tools\VsDevCmd.bat"
+          $msvcEnv = & cmd.exe /d /c "`"$vsDevCmd`" -arch=x86 -host_arch=x64 && set"
+          foreach ($line in $msvcEnv) {
+            if ($line -match '^([^=]+)=(.*)$') {
+              [Environment]::SetEnvironmentVariable($Matches[1], $Matches[2], "Process")
+            }
+          }
           C:\msys64\usr\bin\bash.exe --login -lc '
             pacman --noconfirm --needed -S make zip unzip findutils
             cd "$(cygpath -u "$GITHUB_WORKSPACE")"
