@@ -105,7 +105,7 @@ jobs:
             export PATH="/mingw32/bin:/usr/bin:$PATH"
             pacman --noconfirm --needed -S \
               mingw-w64-i686-toolchain mingw-w64-i686-gcc \
-              mingw-w64-i686-g++ mingw-w64-i686-binutils \
+              mingw-w64-i686-binutils \
               make zip unzip findutils
             command -v gcc
             gcc -dumpmachine
