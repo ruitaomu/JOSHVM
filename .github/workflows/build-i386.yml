@@ -91,6 +91,10 @@ jobs:
       - name: Build and test Win32 i386 with MinGW-w64
         shell: pwsh
         run: |
+          # Complete MSYS2's first-run setup in a separate invocation.  The
+          # setup shell can exit non-zero after installing the skeleton files,
+          # but is ready for a normal build shell afterward.
+          C:\msys64\usr\bin\bash.exe --login -lc 'true'
           C:\msys64\usr\bin\bash.exe --login -lc '
             set -e
             export MSYSTEM=MINGW32
