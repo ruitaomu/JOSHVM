@@ -75,11 +75,11 @@ javacall_lib: $(NOTIFIERS_LIB) $(JAVACALL_OUTPUT_LIB_DIR)/libjavacall$(BUILD_EXT
 
 $(JAVACALL_OUTPUT_OBJ_DIR)/%.o: %.c
 	@echo "...compiling: $@"
-	@$(COMPILE.c) $(OUTPUT_OPTION) $<
+	$(COMPILE.c) -o $@ $<
 
 $(JAVACALL_OUTPUT_OBJ_DIR)/%.o: %.cpp
 	@echo "...compiling: $@"
-	@$(COMPILE.cc) $(OUTPUT_OPTION) $<
+	$(COMPILE.cc) -o $@ $<
 
 $(JAVACALL_OUTPUT_LIB_DIR)/libjavacall$(BUILD_EXT).so: \
 	$(patsubst %,$(JAVACALL_OUTPUT_OBJ_DIR)/%,$(PORTING_OBJECTS)) \
