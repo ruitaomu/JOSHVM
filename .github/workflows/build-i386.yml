@@ -91,6 +91,7 @@ jobs:
       - name: Build and test Win32 i386 with MinGW-w64
         shell: pwsh
         run: |
+          cmd.exe /d /c 'C:\msys64\usr\bin\bash.exe --login -lc "true" || exit /b 0'
           C:\msys64\usr\bin\bash.exe --login -lc '
             set -e
             export MSYSTEM=MINGW32
