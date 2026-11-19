@@ -1,515 +1,514 @@
-# JOSHVM 升级到 Java ME 8 的详细设计
+# Detailed Design for Upgrading JOSHVM to Java ME 8
 
-状态：P1（VM 核心）和 P2 的主体（语言特性所需的类库）已在 Linux i386 和 Win32 i386 目标上实现并通过测试，
-见下面的"实施状态"。P3、P4 未开始。
+Status: P1 (VM core) and the main body of P2 (libraries required for language features) have been implemented and tested on Linux i386 and Win32 i386 targets.
+See "Implementation Status" below. P3 and P4 have not started.
 
-## 实施状态（2026-11-19）
+## Implementation Status (2026-11-19)
 
-### 已实现并验证
+### Implemented and Verified
 
-验证环境：Ubuntu 24.04、gcc 13 和 Windows/MSVC、OpenJDK 8。Linux 上的 32 位程序在
-`qemu-i386` 下运行。`test/vm/run-tests.sh` 在 debug（`cldc_vm_g`）和 product（`cldc_vm`）两个 VM、
-动态 JIT、`-int` 和强制编译 `-comp` 三种模式下全部通过，两种类库配置都跑过。
+Test environments: Ubuntu 24.04, gcc 13, Windows/MSVC, and OpenJDK 8. Linux 32-bit programs run
+under `qemu-i386`. `test/vm/run-tests.sh` passes for the debug (`cldc_vm_g`) and product (`cldc_vm`) VMs,
+dynamic JIT, `-int`, and forced compilation `-comp`, and it covers both class-library configurations.
 
-| 项 | 实现 |
+| Item | Implementation |
 |---|---|
-| 版本上限 51 | `JAVA_MAX_SUPPORTED_VERSION`；52 被拒绝 |
-| `invokedynamic` | 常量标签 15、16、18 和字节码 0xBA 都以 "invokedynamic is not supported" 拒绝 |
-| `StackMapTable` | `ClassFileParser::parse_stackmap_table()`，版本 50 及以上使用，解析时展开成原有内部格式；校验器未改 |
-| `ldc` 类常量 | 解释器经 `quicken()` 分派到 `_fast_class_ldc`、`_fast_class_ldc_w`，调用运行时 `ldc_class()`；版本低于 49 的类被校验器拒绝 |
-| 数组 `clone` | `ConstantPool::array_clone_method_at()` 把数组类上的 `clone()Object` 绑定到 `JVM.cloneArray()`；`Object` 没有增加方法 |
-| 数组类所属的方法引用 | 原先会把数组类当实例类访问（debug 构建触发断言）。现在按 `Object` 的方法解析；字段引用和接口方法引用抛 `IncompatibleClassChangeError` |
-| 类库 | `ENABLE_CLDC_8=true` 时用 `-source 1.7 -target 1.7` 编译、不预校验、整体 ROM 化 |
-| 新增的类 | `StringBuilder`、`CharSequence`、`Comparable`、`Enum`、`Iterable`、`java.util.Iterator`、`AutoCloseable`、`AssertionError`、`LinkageError`、`IncompatibleClassChangeError`、`NoSuchFieldError`、`java.lang.annotation` 的 7 个类型、`Override`、`Deprecated`、`SuppressWarnings`、`SafeVarargs` |
-| 修改的类 | 八个包装类加 `valueOf(基本类型)`；`String`、`StringBuffer` 实现 `CharSequence`（`String` 另实现 `Comparable<String>`）；`Throwable` 加 `addSuppressed`、`getSuppressed`；`Class` 泛型化并加 `desiredAssertionStatus()` |
+| Maximum version 51 | `JAVA_MAX_SUPPORTED_VERSION`; 52 is rejected |
+| `invokedynamic` | Constant tags 15, 16, and 18 and bytecode 0xBA are all rejected with "invokedynamic is not supported" |
+| `StackMapTable` | `ClassFileParser::parse_stackmap_table()`, used for version 50 and above, expands to the existing internal format during parsing; verifier unchanged |
+| `ldc` class constants | Interpreter dispatches through `quicken()` to `_fast_class_ldc` and `_fast_class_ldc_w`, calling runtime `ldc_class()`; the verifier rejects classes below version 49 |
+| Array `clone` | `ConstantPool::array_clone_method_at()` binds `clone()Object` on array classes to `JVM.cloneArray()`; no method is added to `Object` |
+| Method references on array classes | Previously array classes were treated as instance classes (assertion triggered in debug builds). Resolution now proceeds as it would for `Object`; field references and interface method references throw `IncompatibleClassChangeError` |
+| Class library | With `ENABLE_CLDC_8=true`, compile with `-source 1.7 -target 1.7`, do not preverify, and ROMize the full library |
+| Added classes | `StringBuilder`, `CharSequence`, `Comparable`, `Enum`, `Iterable`, `java.util.Iterator`, `AutoCloseable`, `AssertionError`, `LinkageError`, `IncompatibleClassChangeError`, `NoSuchFieldError`, seven types in `java.lang.annotation`, `Override`, `Deprecated`, `SuppressWarnings`, `SafeVarargs` |
+| Modified classes | Eight wrapper classes add `valueOf(primitive type)`; `String` and `StringBuffer` implement `CharSequence` (`String` also implements `Comparable<String>`); `Throwable` adds `addSuppressed` and `getSuppressed`; `Class` is genericized and adds `desiredAssertionStatus()` |
 
-### 构建和测试
+### Build and Tests
 
 ```sh
-# 默认配置（CLDC 1.1.1 类库）
+# Default configuration (CLDC 1.1.1 class library)
 ./build-linux-i386-cldc.sh -C -J <JDK 8>
-# Java 7 语言级别的类库
+# Class library with Java 7 language level
 ENABLE_CLDC_8=true ./build-linux-i386-cldc.sh -C -J <JDK 8>
-# 测试（针对最近一次构建）
+# Tests (against the most recent build)
 JDK_DIR=<JDK 8> test/vm/run-tests.sh
 ```
 
-- 两种配置共用输出目录，切换时必须带 `-C`。
-- `PREVERIFY_ORIGINAL=<路径>`：换用自己编译的 `preverify`。仓库里预编译的那个在这台机器上不报错也不产生输出，
-  需要从 `preverifier/build/linux` 编译（见 `tools/docker/linux-i386/build-and-test.sh`）。
-- `HOST_EXE_RUN=qemu-i386`：在不能直接执行 32 位程序的机器上运行 preverify、loopgen、romgen 和测试。
-- `tools/docker/linux-i386/` 和 `.github/workflows/build-i386.yml` 把上述 Linux 和 Win32 i386
-  步骤打包了。后者的两个任务分别构建并测试默认类库和 `ENABLE_CLDC_8=true` 类库。
+- Both configurations share the output directory, so switching requires `-C`.
+- `PREVERIFY_ORIGINAL=<path>`: use a preverify executable that you compiled yourself. The precompiled one in the repository neither reports errors nor produces output on this machine,
+  so build it from `preverifier/build/linux` (see `tools/docker/linux-i386/build-and-test.sh`).
+- `HOST_EXE_RUN=qemu-i386`: run preverify, loopgen, romgen, and tests on a machine that cannot execute 32-bit programs directly.
+- `tools/docker/linux-i386/` and `.github/workflows/build-i386.yml` package the Linux and Win32 i386
+  steps described above. The latter's two jobs build and test the default class library and the `ENABLE_CLDC_8=true` class library, respectively.
 
-为了让基线在现在的工具链上能构建和运行，另外改了这些地方：
+The following additional changes were made so that the baseline can build and run with the current toolchain:
 
-- `cldc/build/share/jvm.make`：gcc 构建加 `-fno-strict-aliasing -fno-delete-null-pointer-checks
-  -fno-lifetime-dse -fwrapv -Wno-narrowing`（不加的话 romgen 直接段错误）。**这影响所有用 gcc 的目标**，
-  包括没有在这里构建过的 ESP32、STM32 等。
-- `jvm.make`、`root.make`：源文件列表不再经过 shell 命令行（超过单参数长度上限），需要 GNU make 4.0 以上。
-- `cldc/src/vm/os/linux/OS_linux.cpp`：`MINSIGSTKSZ` 不再是编译期常量。
-- `javacall/implementation/linux/cldc/`：去掉 `stropts.h`；Java 堆改用可执行的 `mmap`（原来 `malloc` 的堆上
-  JIT 代码无法执行）；定时器线程用条件变量停止，不再用 `pthread_cancel`。
+- `cldc/build/share/jvm.make`: add `-fno-strict-aliasing -fno-delete-null-pointer-checks
+  -fno-lifetime-dse -fwrapv -Wno-narrowing` to gcc builds (without these, romgen segfaults directly). **This affects every target using gcc**,
+  including ESP32 and STM32, which were not built here.
+- `jvm.make`, `root.make`: source-file lists are no longer passed through shell command lines (which exceed the single-argument length limit); GNU make 4.0 or later is required.
+- `cldc/src/vm/os/linux/OS_linux.cpp`: `MINSIGSTKSZ` is no longer a compile-time constant.
+- `javacall/implementation/linux/cldc/`: remove `stropts.h`; change the Java heap to executable `mmap` (the JIT could not execute code in the
+  heap where it was previously allocated with `malloc`); timer threads stop using condition variables instead of `pthread_cancel`.
 
-### 与下文设计的偏差
+### Deviations from the Design Below
 
-下文各节保留了动手之前的设计原文。实现与它不同的地方：
+The sections below preserve the original pre-implementation design. The implementation differs as follows:
 
-| 节 | 原设计 | 实际做法 | 原因 |
+| Section | Original design | Actual approach | Reason |
 |---|---|---|---|
-| 3 | `cldc8` 目录是 `cldc1.1.1` 的完整拷贝 | `cldc8` 只放新增和改动的文件，构建时覆盖 `cldc1.1.1`（以及 DIO 模块里的 `Comparable`）中同路径的文件 | 避免复制 3.6 万行不变的代码 |
-| 4.4 | 方案 A 是"不改写，每次走慢路径"，但没说清解释器怎么分派 | 新增两个只存在于分派表里的字节码，方法里的 `ldc` 永远不被改写。`ldc`、`ldc_w` 的模板从"重做"改成"按返回值分派" | 开启 Isolate 时类镜像是每个任务一份，不能缓存在共享的常量池里；不改写方法也就不用动 GC 栈映射、ROM 写出和调试器 |
-| 4.4 | 版本检查没说放在哪 | 类上加一个内部标志位 `JVM_ACC_LDC_CLASS_ALLOWED`（第 21 位），校验器检查 | 校验时已经拿不到 class 文件版本 |
-| 4.4 | JIT 遇到类常量放弃编译整个方法 | 在该字节码处生成 uncommon trap，回到解释器 | 现成机制，方法其余部分仍然被编译 |
-| 4.8 | 入口形式待定（倾向隐藏的 native） | `com.sun.cldchi.jvm.JVM` 里的 `private final native Object cloneArray()`，接收者就是数组 | 该类在隐藏包里，ROM 化时不改名，native 方法不会被当成死代码删掉 |
-| 5 | `Enum.valueOf` 用方案 A：native 按名字读 `$VALUES` | 方案 B：每个常量在构造时登记到 `Enum` 的一张表里 | product 构建的 ROM 镜像不保留字段名，方案 A 对 ROM 里的枚举行不通；方案 B 也不依赖 javac 的命名 |
-| 5 | 来源优先从 OpenJDK 7 移植 | 新增的类都是重新写的，改动的类基于 `cldc1.1.1` 的原文件 | 需要的类都很小 |
+| 3 | The `cldc8` directory would be a complete copy of `cldc1.1.1` | `cldc8` contains only added and modified files, and the build overlays files with the same paths in `cldc1.1.1` (and in `Comparable` in the DIO module) | Avoid copying 36,000 lines of unchanged code |
+| 4.4 | Plan A was "do not rewrite, always take the slow path," but interpreter dispatch was unclear | Add two bytecodes that exist only in the dispatch table; `ldc` in a method is never rewritten. Change the templates for `ldc` and `ldc_w` from "redo" to "dispatch according to the return value" | Isolate class mirrors are per-task, so they cannot be cached in a shared constant pool; not rewriting methods also avoids touching GC stack maps, ROM output, and the debugger |
+| 4.4 | The version check location was unspecified | Add an internal class flag, `JVM_ACC_LDC_CLASS_ALLOWED` (bit 21), and check it in the verifier | The class-file version is no longer available during verification |
+| 4.4 | The JIT would abandon compilation of an entire method when encountering a class constant | Generate an uncommon trap at that bytecode and return to the interpreter | This reuses an existing mechanism, while the rest of the method remains compilable |
+| 4.8 | The entry form was undecided (a hidden native was favored) | In `com.sun.cldchi.jvm.JVM`, use `private final native Object cloneArray()`; the receiver is the array | This class is in a hidden package, is not renamed during ROMization, and native methods are not removed as dead code |
+| 5 | `Enum.valueOf` would use Plan A: native code reads `$VALUES` by name | Plan B: register every constant in a table in `Enum` as it is constructed | Product ROM images do not preserve field names, so Plan A does not work for ROMized enum classes; Plan B does not depend on javac naming |
+| 5 | OpenJDK 7 would be the first source | All added classes are rewritten, and modified classes are based on the original `cldc1.1.1` files | The required classes are all small |
 
-### 没有做或没有验证的
+### Not Done or Not Verified
 
-- **ARM 和 Thumb-2 解释器**：`TemplateTable_arm.cpp`、`TemplateTable_thumb2.cpp` 里的 `bc_fast_class_ldc`
-  是照 `bc_new` 写的，**没有编译过也没有运行过**。在这些目标上要先验证类字面量。
-- **其他目标**：只构建和测试了 Linux i386。其他平台的 `build-*.sh` 没有加 `ENABLE_CLDC_8`。
-- **体积**：第 7 节要求的 Thumb-2 配置下的 ROM、RAM 增量没有测。i386 上的数字见第 7 节。
-- **差分测试**（与 HotSpot 的校验结论对比）没有做。模糊测试只覆盖 `StackMapTable` 属性，
-  单次运行过 400 个变体（默认 40 个）。
-- **P2 里没做的**：`java.io.Closeable` 以及流、连接类实现 `AutoCloseable`；`Vector` 等实现 `Iterable`；
-  包装类实现 `Comparable`；`Number`；`Appendable`；现有集合类的泛型化。
-- **4.9 的布局约束清单和启动断言**没有做。改动的 `Throwable`、`Class`、`String` 只在末尾加了字段或方法。
-- **调试器**（kdp）对新格式类的断点、单步没有验证。
-- **应用侧 SDK**（`sdk/`、`test/rule.gmk`）没有改。
-- VM 自己抛出的缺字段错误仍然是带文字的 `java.lang.Error`，不是新增的 `NoSuchFieldError`。
+- **ARM and Thumb-2 interpreters**: `bc_fast_class_ldc` in `TemplateTable_arm.cpp` and `TemplateTable_thumb2.cpp`
+  is modeled on `bc_new` and **has not been compiled or run**. Class literals must be verified first on these targets.
+- **Other targets**: Only Linux i386 was built and tested. `ENABLE_CLDC_8` was not added to `build-*.sh` for other platforms.
+- **Size**: The ROM/RAM increments required by Section 7 for Thumb-2 configurations were not measured. i386 values are in Section 7.
+- **Differential testing** (comparison with HotSpot verifier conclusions) was not performed. Fuzz testing covered only the `StackMapTable`
+  attribute, with 400 variants in a single run (40 is the default).
+- **Not done for P2**: `java.io.Closeable` and stream/connection classes implementing `AutoCloseable`; `Vector` and similar classes implementing `Iterable`;
+  wrapper classes implementing `Comparable`; `Number`; `Appendable`; genericization of existing collection classes.
+- **Layout constraint checklist and startup assertions in 4.9**: Not done. The modified `Throwable`, `Class`, and `String` classes only have fields or methods appended at the end.
+- **Debugger**: kdp breakpoints and stepping for the new class format were not verified.
+- **Application-side SDK**: `sdk/` and `test/rule.gmk` were not changed.
+- VM-thrown missing-field errors are still `java.lang.Error` with text, rather than the new `NoSuchFieldError`.
 
-## 0. 阅读须知
+## 0. Reading Notes
 
-本文的依据分两类，可信度不同：
+This document has two kinds of evidence, with different confidence levels:
 
-- **已核实**：直接读本仓库代码得到的结论，文中给出了文件和行号。
-- **待核对**：关于 Java ME 8 规范（CLDC 8 / JSR 360、MEEP 8 / JSR 361）要求的陈述，是凭记忆写的，
-  没有对照规范原文。第 10 节列出了仍待核对的项，开工前需要逐条确认。
+- **Verified**: Conclusions obtained directly from code in this repository, with file and line references.
+- **Pending verification**: Statements concerning the Java ME 8 specifications (CLDC 8 / JSR 360, MEEP 8 / JSR 361) are based on memory,
+  without comparison against the specification text. Section 10 lists all items that still require verification before work begins.
 
-- **已确认**：项目负责人于 2026-11-18 确认的四项前提（见第 10 节）：class 文件版本上限为 51；
-  不支持 `invokedynamic`；VM 必须直接接受 `StackMapTable`；`Object.clone` 不在 CLDC 8 的 `Object` 中。
+- **Confirmed**: The project lead confirmed four prerequisites on 2026-11-18 (see Section 10): the class-file maximum version is 51;
+  `invokedynamic` is unsupported; the VM must accept `StackMapTable` directly; and `Object.clone` is not in CLDC 8 `Object`.
 
-第 1 节以下是动手之前写的设计，当时没有做过任何构建或运行验证；实现后的情况以上面的"实施状态"为准。
+The design in Section 1 and later was written before implementation, with no build or runtime verification; implementation status is given in "Implementation Status" above.
 
-## 1. 目标与范围
+## 1. Goals and Scope
 
-### 目标
+### Goals
 
-| 阶段 | 交付物 | 完成标准 |
+| Phase | Deliverable | Completion Criteria |
 |---|---|---|
-| P1 | VM 能加载并校验 class 文件版本 49–51 | 用 `javac -source 1.7 -target 1.7` 编译、未经 preverify 的类可以运行 |
-| P2 | Java 5–7 语言特性所需的基础类库 | 泛型、枚举、foreach、自动装箱、可变参数、断言、字符串 switch、try-with-resources、多重捕获全部可用 |
-| P3 | CLDC 8 类库 | 集合框架、NIO 子集、日志、权限模型、GCF 扩展 |
-| P4 | MEEP 8 应用模型 | 在 `jams` 之上实现新的应用管理 |
+| P1 | VM can load and verify class files with versions 49–51 | Classes compiled with `javac -source 1.7 -target 1.7` and without preverification can run |
+| P2 | Base class library required for Java 5–7 language features | Generics, enums, foreach, boxing, varargs, assertions, string switch, try-with-resources, and multicatch are all usable |
+| P3 | CLDC 8 class library | Collection framework, NIO subset, logging, permission model, GCF extensions |
+| P4 | MEEP 8 application model | Implement a new application-management model on top of `jams` |
 
-本文对 P1、P2 给出详细设计，对 P3、P4 只给出概要，待 P2 完成后另行细化。
+This document gives a detailed design for P1 and P2 and only a summary for P3 and P4, to be refined after P2 is complete.
 
-### 非目标
+### Non-goals
 
-- `invokedynamic`、Lambda、默认方法（class 文件版本 52）。
-- 反射（`java.lang.reflect`）和运行时注解访问。
-- Oracle TCK 认证。未通过 TCK 之前，对外只能表述为"实现了 CLDC 8 的 API 子集"。
+- `invokedynamic`, lambdas, and default methods (class-file version 52).
+- Reflection (`java.lang.reflect`) and runtime annotation access.
+- Oracle TCK certification. Before passing the TCK, externally describe this only as "an implementation of a subset of the CLDC 8 APIs."
 
-## 2. 现状（已核实）
+## 2. Current State (Verified)
 
-| 项 | 现状 | 位置 |
+| Item | Current state | Location |
 |---|---|---|
-| class 文件版本 | 接受 45–48 | `cldc/src/vm/share/utilities/GlobalDefinitions.hpp:775-776` |
-| 常量池 | 只认 JVMS 第 2 版的标签，其余报 `unknown_constant_tag` | `ClassFileParser.cpp:178-259` |
-| 栈映射 | 只解析 CLDC 的 `StackMap` 属性；未知属性直接跳过 | `ClassFileParser.cpp:1228-1257` |
-| 栈映射内部格式 | 每个映射点展开成完整帧：`int` 数组（偏移、locals、stack）加类名数组；long/double 占两格 | `ClassFileParser.cpp` 的 `parse_stackmaps` |
-| 校验器 | 约 2,700 行，消费上述内部格式 | `cldc/src/vm/share/verifier/` |
-| `ldc` 校验 | 引用类型常量一律当作 `java.lang.String` | `VerifyMethodCodes.cpp:394-402` |
-| 类属性 | 只处理 `SourceFile`、`InnerClasses`、`Synthetic` | `ClassFileParser.cpp:1401-1434` |
-| 访问标志 | 读入时按白名单屏蔽，未识别的位被丢弃 | `ClassFileParser.cpp:624, 948, 1558`；`JvmConst.hpp:98-120` |
-| VM 内部标志位 | 复用了 Java 5 新增标志的位置（见 4.5） | `AccessFlags.hpp:37-63` |
-| 类库选择 | `ENABLE_CLDC_111` 为真时取 `cldc1.1.1` | `cldc/build/share/root.make:105-114` |
-| 类库内容 | `java.lang` 45 个类、`java.util` 13 个类；缺 `StringBuilder`、`Enum`、`Iterable`、`Comparable`、`AutoCloseable`、`AssertionError`；`Boolean` 没有 `valueOf` | `cldc/src/javaapi/cldc1.1.1/` |
-| 编译参数 | `-source 1.4 -target 1.4`，共三处 | `jvm.make:59`、`tests.make:44`、`test/rule.gmk:52` |
-| 预校验 | 系统类编译后统一过 `preverify` | `jvm.make:699-704` |
-| `jcc` | 常量 `JAVA_VERSION = 45`，只认 `StackMap` | `cldc/src/tools/jcc/util/ClassFileConst.java:69`、`components/MethodInfo.java:95` |
-| ROM 配置 | 按类名写死初始化和改名规则 | `cldc/src/vm/cldc_rom.cfg` |
-| 测试 | `tests.make` 引用的测试源码不在仓库里；`test/` 只有两个示例 | `cldc/build/share/tests.make` |
+| Class-file version | Accepts 45–48 | `cldc/src/vm/share/utilities/GlobalDefinitions.hpp:775-776` |
+| Constant pool | Recognizes only JVMS second-edition tags; all others report `unknown_constant_tag` | `ClassFileParser.cpp:178-259` |
+| Stack maps | Parses only the CLDC `StackMap` attribute; unknown attributes are skipped | `ClassFileParser.cpp:1228-1257` |
+| Internal stack-map format | Each mapping point is expanded into a complete frame: an `int` array (offset, locals, stack) plus a class-name array; long/double occupy two slots | `parse_stackmaps` in `ClassFileParser.cpp` |
+| Verifier | Approximately 2,700 lines, consumes the internal format above | `cldc/src/vm/share/verifier/` |
+| `ldc` verification | Reference-type constants are always treated as `java.lang.String` | `VerifyMethodCodes.cpp:394-402` |
+| Class attributes | Handles only `SourceFile`, `InnerClasses`, and `Synthetic` | `ClassFileParser.cpp:1401-1434` |
+| Access flags | Masked against a whitelist on read; unrecognized bits are discarded | `ClassFileParser.cpp:624, 948, 1558`; `JvmConst.hpp:98-120` |
+| VM internal flags | Reuses positions introduced as Java 5 flags (see 4.5) | `AccessFlags.hpp:37-63` |
+| Class-library selection | If `ENABLE_CLDC_111` is true, use `cldc1.1.1` | `cldc/build/share/root.make:105-114` |
+| Class-library contents | 45 `java.lang` classes and 13 `java.util` classes; missing `StringBuilder`, `Enum`, `Iterable`, `Comparable`, `AutoCloseable`, `AssertionError`; `Boolean` has no `valueOf` | `cldc/src/javaapi/cldc1.1.1/` |
+| Compilation parameters | `-source 1.4 -target 1.4`, in three places | `jvm.make:59`, `tests.make:44`, `test/rule.gmk:52` |
+| Preverification | System classes are uniformly passed through `preverify` after compilation | `jvm.make:699-704` |
+| `jcc` | Constant `JAVA_VERSION = 45`, recognizes only `StackMap` | `cldc/src/tools/jcc/util/ClassFileConst.java:69`, `components/MethodInfo.java:95` |
+| ROM configuration | Initialization and renaming rules are hard-coded by class name | `cldc/src/vm/cldc_rom.cfg` |
+| Tests | Test source referenced by `tests.make` is not in the repository; `test/` contains only two examples | `cldc/build/share/tests.make` |
 
-## 3. 总体策略
+## 3. Overall Strategy
 
-1. **新增配置而不是替换**。增加构建开关 `ENABLE_CLDC_8`（默认关），新增类库目录
-   `cldc/src/javaapi/cldc8/`，在 `root.make:105` 的选择链最前面加一支。原有 CLDC 1.1.1 配置保持可构建，
-   用于低端 MCU 和回归对比。
-2. **VM 改动尽量不分叉**。P1 的 VM 改动（版本号、`StackMapTable`、`ldc` 类常量）对旧 class 文件没有副作用，
-   不放在 `ENABLE_CLDC_8` 后面，这样两种配置共用同一套校验路径，减少要测的组合。
-   只有会增加体积的部分（如数组 `clone`、枚举支持的 native）才受开关控制。
-3. **复用现有校验器**。把 `StackMapTable` 在解析时转换成现有内部格式，校验器和 GC 栈映射压缩
-   （`StackmapGenerator`）都不用改。详见 4.3。
-4. **先搭测试再改代码**。校验器是安全边界，P1 的第一项工作是测试框架（第 8 节）。
+1. **Add a configuration rather than replace it**. Add the build switch `ENABLE_CLDC_8` (off by default) and the class-library directory
+   `cldc/src/javaapi/cldc8/`, and add it first in the selection chain at `root.make:105`. Preserve the existing CLDC 1.1.1 configuration as
+   a buildable configuration for low-end MCUs and regression comparison.
+2. **Avoid forking VM changes**. P1 VM changes (version number, `StackMapTable`, `ldc` class constants) have no side effects on old class files,
+   so they are not guarded by `ENABLE_CLDC_8`. This makes both configurations share the same verification path and reduces combinations to test.
+   Only parts that increase size (such as array `clone` and enum support native code) are switch-controlled.
+3. **Reuse the existing verifier**. Convert `StackMapTable` to the existing internal format while parsing, so the verifier and GC stack-map compression
+   (`StackmapGenerator`) require no changes. See 4.3.
+4. **Add tests before changing code**. The verifier is the security boundary, and the first P1 task is the test framework (Section 8).
 
-## 4. P1：VM 核心
+## 4. P1: VM Core
 
-### 4.1 版本号
+### 4.1 Version Number
 
-- `JAVA_MAX_SUPPORTED_VERSION` 从 48 改为 51。
-- `ClassFileParser.cpp:719` 有一处对 45.3 的特判，需要读懂上下文后确认对新版本的行为（未细读）。
-- 解析状态里已经保存了 `major_version`，后续按版本分支的逻辑都从这里取。
+- Change `JAVA_MAX_SUPPORTED_VERSION` from 48 to 51.
+- `ClassFileParser.cpp:719` has a special case for 45.3. Read the context, then confirm behavior for new versions (not yet examined).
+- The major version is already saved in the parsing state; all later version-dependent logic reads it from there.
 
-### 4.2 常量池
+### 4.2 Constant Pool
 
-版本 51 新增三种标签：`MethodHandle`(15)、`MethodType`(16)、`InvokeDynamic`(18)。
+Three tags are new in version 51: `MethodHandle` (15), `MethodType` (16), and `InvokeDynamic` (18).
 
-设计：**不支持，明确拒绝**（已确认）。不使用 Lambda 的 Java 7 源码不会生成这三种常量。
-解析到时抛 `ClassFormatError`，并新增一条专门的错误信息（"不支持 invokedynamic"），
-不要落到笼统的 `unknown_constant_tag`，否则用户无法判断原因。
+Design: **Explicitly unsupported and rejected** (confirmed). Java 7 source that does not use lambdas does not generate these three constants.
+When one is encountered, throw `ClassFormatError` and add a dedicated error message ("invokedynamic is not supported"),
+rather than the generic `unknown_constant_tag`, so the cause is clear to users.
 
-`invokedynamic` 字节码（0xBA）同样在校验阶段拒绝。需要确认 `Bytecodes.hpp` 中 0xBA 当前是否被
-VM 内部快速字节码占用（未查）。
+The `invokedynamic` bytecode (0xBA) is also rejected during verification. Confirm whether 0xBA is already used as an internal
+quick bytecode in `Bytecodes.hpp` (not checked).
 
 ### 4.3 StackMapTable
 
-这是 P1 的核心。
+This is the core of P1.
 
-**格式差异**
+**Format differences**
 
-| | CLDC `StackMap`（现有） | `StackMapTable`（新增） |
+| | Existing CLDC `StackMap` | New `StackMapTable` |
 |---|---|---|
-| 偏移 | 每帧绝对偏移 | `offset_delta`，首帧直接取值，其后为"上一帧偏移 + delta + 1" |
-| 内容 | 每帧完整列出 locals 和 stack | 相对上一帧的增量：`same`、`same_locals_1_stack_item`、`chop`、`append`、`full_frame` 及扩展形式 |
-| 初始帧 | 无 | 由方法描述符隐式给出 |
-| 类型项 | 标签 0–8 | 标签 0–8 |
+| Offset | Absolute offset in each frame | `offset_delta`; first frame uses the value directly; subsequent frames use "previous frame offset + delta + 1" |
+| Contents | Locals and stack are listed completely in each frame | Increments relative to the previous frame: `same`, `same_locals_1_stack_item`, `chop`, `append`, `full_frame`, and extended forms |
+| Initial frame | None | Implicitly supplied by the method descriptor |
+| Type items | Tags 0–8 | Tags 0–8 |
 
-**设计：解析时展开**
+**Expand while parsing**
 
-在 `ClassFileParser` 中新增 `parse_stackmap_table()`，与 `parse_stackmaps()` 并列，输出同样的
-`ObjArray`（每个映射点一对 `stackmap_scalars`、`stackmap_classes`）：
+In `ClassFileParser`, add `parse_stackmap_table()` alongside `parse_stackmaps()` and emit the same
+`ObjArray` (one pair of `stackmap_scalars` and `stackmap_classes` per mapping point):
 
-1. 根据方法的访问标志和描述符构造初始帧（实例方法的 0 号局部变量是 `this`；`<init>` 中是未初始化的 `this`）。
-2. 维护一个"当前帧"，逐条读取帧记录并就地更新，每条记录产出一个完整帧写入输出数组。
-3. long/double 展开成两格（`ITEM_Long` 加 `ITEM_Long_2`），与现有约定一致。
-4. 未初始化对象（标签 8，带 `new` 指令偏移）用现有的 `ENCODE_NEWOBJECT` 编码。
-5. 未初始化的 `this`（标签 6）映射到现有的 `ITEM_InitObject`。
+1. Construct the initial frame from the method access flags and descriptor (local variable 0 is `this` for an instance method; in `<init>` it is an uninitialized `this`).
+2. Maintain a "current frame," read each frame record in turn and update it in place, and write one complete frame to the output array for each record.
+3. Expand long/double into two slots (`ITEM_Long` plus `ITEM_Long_2`), consistent with the existing convention.
+4. Encode uninitialized objects (tag 8, with a `new` instruction offset) using the existing `ENCODE_NEWOBJECT` encoding.
+5. Map uninitialized `this` (tag 6) to the existing `ITEM_InitObject`.
 
-**解析时必须做的检查**（每一项都要有对应的反例测试）：
+**Required checks during parsing** (each one requires a corresponding negative test):
 
-- 属性长度与实际消费的字节数一致；一个 `Code` 里不能有两个栈映射属性。
-- 每个偏移都小于 `code_length`，且严格递增。
-- `chop` 不能削减到负数；`append` 和 `full_frame` 不能超过 `max_locals`、`max_stack`（含 long/double 的第二格）。
-- 类型标签在 0–8 之内；`Object` 项的常量池索引有效且指向类。
-- 标签 8 的偏移指向一条 `new` 指令（现有的 `check_news` 已经做这件事，确认新路径也经过它）。
+- Attribute length matches the number of bytes actually consumed; a `Code` attribute cannot contain two stack-map attributes.
+- Every offset is smaller than `code_length` and strictly increasing.
+- `chop` cannot reduce the count below zero; `append` and `full_frame` cannot exceed `max_locals` or `max_stack` (including the second slot for long/double).
+- Type tags are within 0–8; for an `Object` item, the constant-pool index is valid and points to a class.
+- For tag 8, the offset points to a `new` instruction (the existing `check_news` already does this; confirm that the new path goes through it).
 
-**选择哪种属性**
+**Which attribute to select**
 
-| class 版本 | 行为 |
+| Class version | Behavior |
 |---|---|
-| 45–49 | 沿用现状，要求 `StackMap`（即必须经过 preverify） |
-| 50–51 | 使用 `StackMapTable`；若同时存在 `StackMap` 则忽略后者 |
+| 45–49 | Preserve current behavior and require `StackMap` (i.e., preverification is required) |
+| 50–51 | Use `StackMapTable`; if `StackMap` is also present, ignore the latter |
 
-版本 50 及以上不做类型推导回退：没有映射而又有分支目标的方法直接校验失败。
-`jsr`、`ret` 在新版本中不允许；现有校验器对这两条指令的处理未查，需要确认它们会被拒绝。
+For version 50 and above, do not fall back to type inference: a method with branch targets but no mapping must fail verification.
+`jsr` and `ret` are not permitted in the new version; existing handling of these two instructions in the verifier was not checked, so confirm that they are rejected.
 
-**内存影响**：展开后的内部格式与现状相同，预计峰值内存没有变化（未测量）。
+**Memory impact**: The expanded internal format is identical to the existing format, so peak memory is expected to remain unchanged (not measured).
 
-**待核对**：现有校验器的类型规则是否与 JVMS 第 7 版的类型检查规则等价，尤其是接口赋值
-（`VerifierFrame.cpp:629` 对接口目标一律放行）、受保护成员访问、以及 `<init>` 中
-`this` 未初始化时的 `putfield`（`VerifyMethodCodes.cpp:774-815` 已有处理）。建议用第 8 节的测试集
-与 HotSpot 的校验结果做差分对比。
+**Pending verification**: Determine whether the existing verifier's type rules are equivalent to the type-checking rules in JVMS 7, especially interface assignment
+(`VerifierFrame.cpp:629` permits all interface targets), protected-member access, and `putfield` of an uninitialized
+`this` in `<init>` (handled in `VerifyMethodCodes.cpp:774-815`). Differentially compare the test set in Section 8 with HotSpot verification results.
 
-### 4.4 `ldc` 加载类常量
+### 4.4 Loading Class Constants with `ldc`
 
-从版本 49 起，`ldc`、`ldc_w` 可以引用 `CONSTANT_Class`，结果是该类的 `java.lang.Class` 对象。
-javac 对 `Foo.class` 就生成这种指令（旧版本生成的是 `Class.forName` 调用）。
+Starting with version 49, `ldc` and `ldc_w` can reference `CONSTANT_Class`, producing a `java.lang.Class` object for that class.
+For `Foo.class`, javac generates this instruction (older versions generated a call to `Class.forName`).
 
-需要改动的地方：
+Required changes:
 
-| 位置 | 改动 |
+| Location | Change |
 |---|---|
-| 校验器 `VerifyMethodCodes::push_obj` | 目前把非空引用常量都当 `String`。需要让字节码遍历层把常量标签传下来，类常量压入 `java.lang.Class`。并且仅当 class 版本 ≥ 49 时才允许。 |
-| 解释器 | `ldc` 的首次执行路径上增加类常量分支：解析类（可能触发加载并抛 `NoClassDefFoundError`），压入类镜像（`JavaClassObj`）。 |
-| 字节码快速化 | `Method.cpp:1380` 附近把 `ldc` 改写成 `_fast_*ldc`。类常量有两个方案：<br>A. 不改写，每次走运行时慢路径。实现最小，性能差。<br>B. 新增一个快速字节码，解析后从常量池直接取镜像。<br>建议先做 A 保证正确，测出热点后再做 B。 |
-| C 解释器 | `Interpreter_c.cpp` 的 `fast_ldc` 及其调用处。 |
-| 汇编解释器 | `TemplateTable_{arm,thumb,thumb2,i386}.cpp` 中的 `ldc` 模板。方案 A 下只需在慢路径调用运行时。 |
-| JIT | `BytecodeCompileClosure` 的常量加载。方案 A 下遇到类常量可以直接放弃编译该方法（回退到解释器），后续再优化。 |
-| ROM 化 | `BytecodeOptimizer`、`ConstantPoolRewriter` 需要认识这种用法，保证类常量项在常量池重排和合并后仍然正确。 |
+| Verifier `VerifyMethodCodes::push_obj` | Currently, all non-null reference constants are treated as `String`. The bytecode-traversal layer must pass the constant tag down so class constants push `java.lang.Class`. Also permit this only for class version ≥ 49. |
+| Interpreter | Add a class-constant branch to the first execution path of `ldc`: resolve the class (which may trigger loading and throw `NoClassDefFoundError`) and push the class mirror (`JavaClassObj`). |
+| Bytecode quickening | Near `Method.cpp:1380`, change `ldc` to `_fast_*ldc`. There are two plans for class constants:<br>A. Do not rewrite; always use the runtime slow path. Minimum implementation effort and slower.<br>B. Add a fast bytecode that resolves the class and obtains the mirror directly from the constant pool.<br>Recommend Plan A first for correctness, then Plan B if profiling shows a hotspot. |
+| C interpreter | `fast_ldc` in `Interpreter_c.cpp` and its call sites. |
+| Assembly interpreter | `ldc` templates in `TemplateTable_{arm,thumb,thumb2,i386}.cpp`. Under Plan A, only the slow path needs to call the runtime. |
+| JIT | Constant loading in `BytecodeCompileClosure`. Under Plan A, encountering a class constant can abandon compilation of that method (fall back to the interpreter) and be optimized later. |
+| ROMization | `BytecodeOptimizer` and `ConstantPoolRewriter` must recognize this use and ensure the class-constant entry remains correct after constant-pool reordering and merging. |
 
-注意：`ldc` 类常量**不**触发类初始化，只触发加载和链接。
+Note: `ldc` class constants do **not** trigger class initialization, only loading and linking.
 
-### 4.5 访问标志
+### 4.5 Access Flags
 
-Java 5 新增的标志与 VM 内部标志位置冲突（`AccessFlags.hpp`）：
+The flags added in Java 5 overlap VM internal flags (`AccessFlags.hpp`):
 
-| 标准标志 | 值 | 同一位上的 VM 内部标志 |
+| Standard flag | Value | VM internal flag at the same bit |
 |---|---|---|
-| `ACC_BRIDGE`（方法） | 0x0040 | `JVM_ACC_HAS_MONITOR_BYTECODES` |
-| `ACC_VARARGS`（方法） | 0x0080 | `JVM_ACC_HAS_INVOKE_BYTECODES` |
+| `ACC_BRIDGE` (method) | 0x0040 | `JVM_ACC_HAS_MONITOR_BYTECODES` |
+| `ACC_VARARGS` (method) | 0x0080 | `JVM_ACC_HAS_INVOKE_BYTECODES` |
 | `ACC_SYNTHETIC` | 0x1000 | `JVM_ACC_HAS_NO_STACKMAPS` |
-| `ACC_ANNOTATION`（类） | 0x2000 | `JVM_ACC_SYNTHETIC`（VM 内部定义在第 13 位） |
+| `ACC_ANNOTATION` (class) | 0x2000 | `JVM_ACC_SYNTHETIC` (VM internal flag in bit 13) |
 | `ACC_ENUM` | 0x4000 | `JVM_ACC_HAS_NO_EXCEPTION_TABLE` |
 
-目前读入时按白名单屏蔽，所以这些位会被丢弃，不会污染内部标志。设计上：
+The values are currently masked against a whitelist during read, so these bits are discarded and cannot contaminate internal flags. Design:
 
-- **保持白名单不变**。没有反射，`BRIDGE`、`VARARGS`、`ENUM`、`ANNOTATION` 在运行时没有消费者。
-- **唯一要处理的是 `ACC_SYNTHETIC`**：版本 49 起 javac 用标志位而不是 `Synthetic` 属性来标记合成成员。
-  读入时若原始标志含 0x1000，则设置内部的 `JVM_ACC_SYNTHETIC`。需要先查清内部 synthetic 标志有哪些消费者
-  （调试器、ROM 优化器），如果没有实际用途可以不做。
-- 增加一条断言或测试，保证白名单以外的位永远不会进入 `AccessFlags`，防止以后有人放宽白名单时踩到冲突。
+- **Keep the whitelist unchanged**. With no reflection, `BRIDGE`, `VARARGS`, `ENUM`, and `ANNOTATION` have no runtime consumers.
+- **The only flag requiring handling is `ACC_SYNTHETIC`**: starting with version 49, javac uses this flag instead of the `Synthetic` attribute to mark synthetic members.
+  On read, if the original flags contain 0x1000, set the internal `JVM_ACC_SYNTHETIC`. First determine the internal synthetic flag's consumers
+  (debugger and ROM optimizer); if it has no practical use, omit this mapping.
+- Add an assertion or test to ensure that bits outside the whitelist can never enter `AccessFlags`, preventing future whitelist expansions from causing conflicts.
 
-### 4.6 新属性
+### 4.6 New Attributes
 
-`Signature`、`EnclosingMethod`、`RuntimeVisibleAnnotations`、`RuntimeInvisibleAnnotations`、
-`AnnotationDefault`、`LocalVariableTypeTable`、`SourceDebugExtension`、`BootstrapMethods`。
+`Signature`, `EnclosingMethod`, `RuntimeVisibleAnnotations`, `RuntimeInvisibleAnnotations`,
+`AnnotationDefault`, `LocalVariableTypeTable`, `SourceDebugExtension`, `BootstrapMethods`.
 
-设计：全部**跳过**，现有代码对未知属性已经是这样处理的，不需要改动。
-唯一例外是 `BootstrapMethods`：出现即说明类使用了 `invokedynamic`，可以在这里提前报错。
+Design: **Skip all of them**. Existing code already handles unknown attributes this way, so no change is needed.
+The only exception is `BootstrapMethods`: its presence indicates use of `invokedynamic`, so it can produce an error here in advance.
 
-如果 P3 确认 CLDC 8 要求运行时可见注解（待核对），届时再设计存储方式。
+If P3 confirms that CLDC 8 requires runtime-visible annotations (pending verification), storage can be designed later.
 
-### 4.7 桥方法与协变返回
+### 4.7 Bridge Methods and Covariant Returns
 
-javac 为泛型和协变返回生成桥方法：同名、参数相同、返回类型不同的两个方法并存。
-虚方法表若按"名字 + 完整描述符"匹配则不受影响。需要验证两处：
+javac generates bridge methods for generics and covariant returns: two methods with the same name and parameters but different return types.
+If virtual-method lookup matches "name + full descriptor," they are unaffected. Verify both of the following:
 
-- 虚方法表和接口表的构建代码确实用完整描述符比较，而不是只比参数部分。
-- ROM 优化器的方法改名、内联和死方法消除不会把桥方法与目标方法混淆。
+- Virtual-method-table and interface-table construction compare the full descriptor, not only the parameter portion.
+- ROM optimizer method renaming, inlining, and dead-method elimination do not confuse bridge methods with target methods.
 
-这一项预计只需要测试覆盖，不需要改代码。
+This item is expected to require test coverage only, with no code changes.
 
-### 4.8 数组 `clone`
+### 4.8 Array `clone`
 
-javac 为每个枚举生成的 `values()` 方法体是 `$VALUES.clone()`，即对数组类型调用 `clone`。
-`Object.clone` 不在 CLDC 8 的 `Object` 中（已确认），所以**只支持数组 `clone`，`Object` 不增加任何方法**。
-这样 `Object` 的虚方法表不变，所有类的 vtable 布局和现有 ROM 镜像结构都不受影响。
+The `values()` method body generated by javac for every enum is `$VALUES.clone()`, which calls `clone` on the array type.
+`Object.clone` is not in the CLDC 8 `Object` (confirmed), so **support only array `clone`; do not add any method to `Object`**.
+This leaves the `Object` virtual-method table unchanged and does not affect vtable layout or existing ROM mirror structures.
 
-**字节码形态**：javac 对 `$VALUES.clone()` 生成 `invokevirtual`，方法引用的所属类是数组类
-（如 `[LColor;`），名字 `clone`，描述符 `()Ljava/lang/Object;`，随后跟一条 `checkcast`。
+**Bytecode shape**: javac generates `invokevirtual` for `$VALUES.clone()`. The method reference's owner is the array class
+(for example, `[LColor;`), the name is `clone`, and the descriptor is `()Ljava/lang/Object;`, followed by `checkcast`.
 
-**设计**
+**Design**
 
-- 识别条件：方法引用的所属类是数组类，且名字和描述符如上。三个条件必须同时满足。
-- 方法解析：满足条件时不做常规查找（在 `Object` 里找不到），直接解析到 VM 内部的数组拷贝入口。
-  入口的实现形式有两个候选，需读过方法解析和快速化代码后选定：<br>
-  A. 快速化时把这条 `invokevirtual` 改写成一个新的内部快速字节码，解释器直接调用运行时拷贝。<br>
-  B. 解析到一个应用不可见的内部 native 方法，复用现有的调用路径。<br>
-  A 不占用方法表、不依赖类库，但四个 CPU 后端和 JIT 都要加一个模板；B 改动面小。倾向 B。
-- 运行时行为：接收者为 `null` 抛 `NullPointerException`；否则分配同类型同长度的数组并浅拷贝元素。
-  基本类型数组和引用数组都要支持。分配可能触发 GC，实现时接收者必须用句柄保护。
-- 校验器：对满足识别条件的调用，接收者必须是数组类型，返回类型按 `Object` 处理。
-  其他任何类型上的 `clone` 调用按常规规则处理，即因找不到方法而失败。
-- JIT：先不编译含这种调用的方法（回退解释器），或走通用的运行时调用；枚举的 `values()` 不是热点。
-- ROM 化：`ROMOptimizer` 和 `ConstantPoolRewriter` 不能把这个方法引用当作"无法解析"而报错或删除。
-- 应用代码写 `arr.clone()` 也会生成同样的字节码，因此数组 `clone` 对应用实际可用，
-  文档中要写明；非数组对象不能 `clone`。
+- Recognition conditions: the method reference owner is an array class and the name and descriptor match those above. All three conditions must hold.
+- Method resolution: when these conditions hold, skip normal lookup (the method is not found in `Object`) and resolve directly to the VM's internal array-copy entry.
+  After inspecting the method-resolution and quickening code, choose between two candidates:<br>
+  A. During quickening, rewrite this `invokevirtual` to a new internal quick bytecode, and call the runtime copy implementation directly from the interpreter.<br>
+  B. Resolve to an application-invisible internal native method and reuse the existing invocation path.<br>
+  A uses no method table or class library but requires templates for all four CPU backends and JIT support; B requires less change. Favor B.
+- Runtime behavior: throw `NullPointerException` when the receiver is `null`; otherwise allocate an array of the same type and length and shallow-copy the elements.
+  Support primitive and reference arrays. Allocation may trigger GC, so protect the receiver with a handle during implementation.
+- Verifier: for calls meeting the recognition conditions, the receiver must be an array type and the return type is treated as `Object`.
+  For `clone` calls on all other types, apply normal rules; failure occurs because the method cannot be found.
+- JIT: initially do not compile methods containing this call (fall back to the interpreter), or use a general runtime call; enum `values()` is not a hotspot.
+- ROMization: `ROMOptimizer` and `ConstantPoolRewriter` must not report or remove this method reference as "unresolvable."
+- Application code using `arr.clone()` generates the same bytecode, so array `clone` should work for applications.
+  Document this explicitly; non-array objects cannot `clone`.
 
-**编译侧待验证**：用 `-bootclasspath` 指向没有 `Object.clone`、没有 `java.lang.Cloneable` 的类库时，
-javac 能否编译枚举和 `arr.clone()`。我的印象是 javac 内部为数组类型自带 `clone` 成员，
-并会在缺少 `Cloneable` 时自行补一个空接口，但没有验证过。这是 M0 要做的一个小实验；
-如果不成立，需要在类库里提供 `Cloneable`（仅作标记接口）。
+**Compilation-side verification**: Verify whether javac can compile enums and `arr.clone()` when `-bootclasspath` points to a class library
+with neither `Object.clone` nor `java.lang.Cloneable`. My understanding is that javac treats array types as if they have a built-in
+`clone` member and may synthesize an empty interface when `Cloneable` is absent, but this is not verified. This is a small M0 experiment;
+if it is false, provide `Cloneable` (as a marker interface only) in the class library.
 
-### 4.9 VM 与类库的布局耦合
+### 4.9 VM and Class-Library Layout Coupling
 
-VM 按固定偏移访问部分 Java 类的字段，例如 `String` 的 `value`、`offset`、`count`
-（`cldc/src/vm/share/handles/String.hpp:32-64`）和类镜像（`JavaClassObj.hpp:35-46`）；
-`Throwable`、`Thread` 预计也类似（未逐一确认）。
+The VM accesses fields of several Java classes at fixed offsets, including `String` fields `value`, `offset`, and `count`
+(`cldc/src/vm/share/handles/String.hpp:32-64`) and class-mirror fields (`JavaClassObj.hpp:35-46`);
+`Throwable` and `Thread` are expected to behave similarly (not yet checked in detail).
 
-规则：在 `cldc8` 类库中修改这些类时，**VM 已知的字段保持原有顺序和类型，新字段只能加在后面**。
-P2 开始前先列出全部受约束的类（从 `Universe.hpp` 的系统类模板表和各 `handles/*.hpp` 的偏移定义整理），
-写入类库目录下的说明文件，并在 VM 启动自检里加偏移断言（调试构建）。
+Rule: when modifying these classes in the `cldc8` library, **preserve the order and types of fields already known to the VM, and append any new fields**.
+Before P2 starts, compile a complete list of constrained classes (from the system-class template table in `Universe.hpp` and offset definitions in each `handles/*.hpp`),
+put it in an explanatory file under the class-library directory, and add offset assertions to VM startup (debug builds).
 
-## 5. P2：语言特性所需的类库
+## 5. P2: Class Library Required for Language Features
 
-新建 `cldc/src/javaapi/cldc8/`，初始内容从 `cldc1.1.1` 复制，然后按下表增补。
+Create `cldc/src/javaapi/cldc8/`, initially copy `cldc1.1.1`, and then add the entries in the table below.
 
-| 语言特性 | javac 生成的依赖 | 需要新增或修改 |
+| Language feature | javac-generated dependency | Add or modify |
 |---|---|---|
-| 字符串拼接 | `StringBuilder` | 新增 `StringBuilder`、`CharSequence`、`Appendable`；`String`、`StringBuffer` 实现 `CharSequence` |
-| 自动装箱 | 各包装类的 `valueOf(基本类型)` 和 `xxxValue()` | `Boolean` 缺 `valueOf`；其余包装类逐个核对签名；`Number` 抽象类（未查是否已有） |
-| foreach | `Iterable.iterator()`、`Iterator` | 新增 `Iterable`、`java.util.Iterator`；`Vector` 等实现 `Iterable` |
-| 枚举 | `Enum` 基类、`Enum.valueOf(Class, String)`、`$VALUES.clone()`、枚举 switch 用的 `ordinal()` | 新增 `Enum`、`Comparable`；依赖 4.8；`valueOf` 的实现见下 |
-| 断言 | `Class.desiredAssertionStatus()`、`AssertionError` | 新增 `AssertionError`；`desiredAssertionStatus` 先固定返回 `false`，后续可接 VM 选项 |
-| 字符串 switch | `String.hashCode()`、`equals()` | 已有 |
-| try-with-resources | `AutoCloseable`、`Throwable.addSuppressed()` | 新增 `AutoCloseable`、`java.io.Closeable`；`Throwable` 增加 suppressed 列表（字段加在末尾，见 4.9）；流和连接类实现 `Closeable` |
-| 多重捕获、菱形、可变参数、泛型 | 无运行时依赖 | 无 |
-| 注解 | 编译期需要注解类型存在 | 新增 `java.lang.annotation` 的基础类型以及 `Override`、`Deprecated`、`SuppressWarnings`、`SafeVarargs` |
-| 类字面量 | `ldc` 类常量 | 依赖 4.4 |
+| String concatenation | `StringBuilder` | Add `StringBuilder`, `CharSequence`, `Appendable`; make `String` and `StringBuffer` implement `CharSequence` |
+| Boxing | `valueOf(primitive type)` on wrapper classes and `xxxValue()` | `Boolean` lacks `valueOf`; verify signatures of the remaining wrapper classes individually; `Number` abstract class (whether it exists is unchecked) |
+| foreach | `Iterable.iterator()`, `Iterator` | Add `Iterable` and `java.util.Iterator`; make `Vector` and similar classes implement `Iterable` |
+| Enums | `Enum` base class, `Enum.valueOf(Class, String)`, `$VALUES.clone()`, `ordinal()` for enum switches | Add `Enum` and `Comparable`; depend on 4.8; see `valueOf` implementation below |
+| Assertions | `Class.desiredAssertionStatus()`, `AssertionError` | Add `AssertionError`; make `desiredAssertionStatus` return `false` initially, with VM options supported later |
+| String switch | `String.hashCode()`, `equals()` | Already present |
+| try-with-resources | `AutoCloseable`, `Throwable.addSuppressed()` | Add `AutoCloseable` and `java.io.Closeable`; add a suppressed list to `Throwable` (append field, see 4.9); make stream and connection classes implement `Closeable` |
+| Multicatch, diamond, varargs, generics | No runtime dependency | None |
+| Annotations | Annotation types must exist at compile time | Add base types in `java.lang.annotation` and `Override`, `Deprecated`, `SuppressWarnings`, `SafeVarargs` |
+| Class literals | `ldc` class constants | Depends on 4.4 |
 
-**`Enum.valueOf` 的实现**
+**`Enum.valueOf` implementation**
 
-OpenJDK 用反射调用 `values()`。本项目没有反射，两个方案：
+OpenJDK uses reflection to call `values()`. This project has no reflection, so there are two plans:
 
-- A. native 方法按名字读取目标类的静态字段 `$VALUES`。不增加 RAM，但依赖 javac 的命名约定，
-  并且 ROM 优化器不能改名或删除该字段，需要在 `cldc_rom.cfg` 机制里加一条针对枚举类的通用规则。
-- B. `Enum` 构造时把自己登记到一张按类索引的表里。不依赖命名约定，但每个枚举常量多占 RAM。
+- A. A native method reads the target class's static `$VALUES` field by name. This uses no additional RAM, but depends on javac's naming convention,
+  and the ROM optimizer cannot rename or remove the field. Add a general enum rule in the `cldc_rom.cfg` mechanism.
+- B. During `Enum` construction, register the instance in a table indexed by class. It does not depend on naming conventions, but every enum constant consumes additional RAM.
 
-建议方案 A。其他编译器（如 ecj）生成的字段名可能不同，文档中注明只支持 javac。
+Plan A is recommended. Because other compilers, such as ecj, may generate different field names, document that only javac is supported.
 
-**泛型化现有 API**：`Vector`、`Hashtable`、`Enumeration`、`Class` 等加上类型参数。
-擦除后二进制兼容，不影响已有应用。
+**Genericize existing APIs**: Add type parameters to `Vector`, `Hashtable`, `Enumeration`, `Class`, and others.
+Erasure preserves binary compatibility and does not affect existing applications.
 
-**来源与许可**：新增类优先从 OpenJDK 7 移植并裁剪，其许可（GPLv2 加 Classpath 例外）与本项目的 GPLv2 兼容。
-保留原版权头。不得参考或复制 Oracle Java ME Embedded 8 的非开源实现。
+**Origin and license**: Prefer porting and trimming classes from OpenJDK 7. Its license (GPLv2 plus the Classpath exception) is compatible with this project's GPLv2.
+Preserve original copyright headers. Do not refer to or copy Oracle Java ME Embedded 8 closed-source implementations.
 
-## 6. 工具链与构建
+## 6. Toolchain and Build
 
-| 项 | 设计 |
+| Item | Design |
 |---|---|
-| javac 参数 | `ENABLE_CLDC_8` 下改为 `-source 1.7 -target 1.7`，三处同步（`jvm.make:59`、`tests.make:44`、`test/rule.gmk:52`），抽成一个变量 |
-| 构建用 JDK | 建议固定 JDK 8：同时支持 1.4 和 1.7 目标，且可以用 `-bootclasspath` 编译 `java.lang`。更新的 JDK 编译系统类需要模块相关参数，且较新版本已不支持 1.7 目标（待核对具体版本） |
-| preverify | `jvm.make:699-704` 的预校验步骤在 `ENABLE_CLDC_8` 下跳过，类直接带 `StackMapTable` 进入 ROM 化。仓库自带的 `preverify` 不改造（未确认它对新版本 class 文件的行为） |
-| romgen | romgen 是以生成器模式构建的 VM，共用 `ClassFileParser`，因此自动获得 P1 的解析能力。需要验证的是 ROM 优化各遍（4.4、4.7） |
-| `jcc` | 常量写死为版本 45 且只认 `StackMap`。先确认当前构建流程是否还用到它；若用到则需同步改造，若未用到则不动 |
-| ROM 配置 | `cldc_rom.cfg` 增加 `If CLDC_8` 段：新类的 `InitAtBuild`、枚举 `$VALUES` 的保留规则、新包的 `RestrictedPackage` |
-| 调试器 | `kdp` 和 `share/debugger` 依赖行号表和局部变量表，格式未变。新增验证项：对含 `StackMapTable` 的类设断点、单步 |
-| 应用侧 SDK | `sdk/` 和 `test/rule.gmk` 的应用构建流程去掉 preverify 步骤，文档同步 |
+| javac parameters | Under `ENABLE_CLDC_8`, change to `-source 1.7 -target 1.7` at three synchronized locations (`jvm.make:59`, `tests.make:44`, `test/rule.gmk:52`) and extract a shared variable |
+| JDK for builds | Recommend JDK 8: it supports both 1.4 and 1.7 targets and can compile `java.lang` with `-bootclasspath`. Newer JDK build systems require module-related parameters and no longer support the 1.7 target (the exact version is pending verification) |
+| preverify | Skip the preverification step in `jvm.make:699-704` under `ENABLE_CLDC_8`, allowing classes to enter ROMization directly with `StackMapTable`. Do not modify the preverify included in the repository (its behavior with new-version class files is unconfirmed) |
+| romgen | romgen is built in generator mode as the VM and shares `ClassFileParser`, so it automatically gains P1 parsing capability. The relevant ROM-optimizer passes need verification (4.4, 4.7) |
+| `jcc` | Version is hard-coded to 45 and only `StackMap` is recognized. First confirm whether the current build flow still uses it; if it does, update it as well; if not, leave it unchanged |
+| ROM configuration | In `cldc_rom.cfg`, add an `If CLDC_8` section: `InitAtBuild` for new classes, preservation rules for enum `$VALUES`, and `RestrictedPackage` for new packages |
+| debugger | `kdp` and `share/debugger` depend on line-number and local-variable tables, whose formats are unchanged. Add verification: set breakpoints and step through classes containing `StackMapTable` |
+| application-side SDK | Remove preverification from application build flows in `sdk/` and `test/rule.gmk`, and update the documentation |
 
-顶层 `build-*.sh` 增加 `ENABLE_CLDC_8` 变量并传给 make。这些脚本的重复问题不在本设计范围内。
+Add an `ENABLE_CLDC_8` variable to the top-level `build-*.sh` scripts and pass it to make. Repetition among these scripts is outside this design.
 
-## 7. 体积与配置
+## 7. Size and Configuration
 
-`Readme.txt` 给出的基线是 192 KB RAM、700 KB ROM。
+`Readme.txt` gives a baseline of 192 KB RAM and 700 KB ROM.
 
-- P1 只增加解析和校验代码，预计 ROM 增量很小，RAM 无变化。
-- P2 增加约二十个类，预计 ROM 有可感知的增长。
-- P3 会显著增大 ROM，必须可裁剪。
+- P1 only adds parsing and verification code, with an expected very small ROM increase and no RAM change.
+- P2 adds about twenty classes, with an expected noticeable ROM increase.
+- P3 will significantly increase ROM and must be configurable to trim it.
 
-以上都是预估，没有数据。要求：**每个阶段结束时**在 `javacall_armv7m_gcc`（Thumb-2）配置下测量
-ROM 和静态 RAM 的增量并记录在本文档。P3 的类库按包分组，每组一个构建开关。
+These are estimates with no measurements. Requirement: **at the end of each phase**, measure and record ROM and static-RAM increments
+in the `javacall_armv7m_gcc` (Thumb-2) configuration in this document. Group P3 classes by package, with one build switch per group.
 
-**已测到的数字**（Linux i386 的 product 版 `cldc_vm`，`size` 输出，2026-11-18；不是 Thumb-2 配置，
-只能当作量级参考）：
+**Measured numbers** (Linux i386 product `cldc_vm`, `size` output, 2026-11-18; not a Thumb-2 configuration,
+so useful only as an order-of-magnitude reference):
 
-| 配置 | text | data | bss |
+| Configuration | text | data | bss |
 |---|---|---|---|
-| 默认（CLDC 1.1.1 类库） | 1,404,926 | 1,418,580 | 61,252 |
+| Default (CLDC 1.1.1 class library) | 1,404,926 | 1,418,580 | 61,252 |
 | `ENABLE_CLDC_8=true` | 1,415,198 | 1,434,612 | 61,956 |
-| 差值 | +10,272 | +16,032 | +704 |
+| Difference | +10,272 | +16,032 | +704 |
 
-两行都包含 P1 的 VM 改动，差值只反映类库的变化。P1 的 VM 改动本身相对于改动前的增量没有测。
+Both rows include P1 VM changes; the difference reflects only the class-library change. The increment from P1 VM changes relative to the pre-change state was not measured.
 
-## 8. 测试
+## 8. Tests
 
-现状：仓库里没有可用的 VM 测试集（`tests.make` 引用的源码缺失）。
+Current state: no usable VM test suite exists in the repository (`tests.make` references missing source).
 
-### 8.1 框架（P1 第一项工作）
+### 8.1 Framework (First P1 Task)
 
-- 新建顶层 `test/vm/`，或放到 `tests.make` 期望的位置（需先读 `tests.make` 确认路径）。
-- 运行平台：Linux i386，同时跑 C 解释器（`arch = c`）和 i386 汇编解释器加 JIT 两种配置。
-- 每个用例是一个带 `main` 的类，输出固定的通过标记；脚本汇总结果。
-- 在此基础上接入 CI（Linux i386 和 Win32 i386 构建加冒烟测试）。
+- Create a top-level `test/vm/`, or place it at the path expected by `tests.make` (read `tests.make` to confirm the path first).
+- Test platforms: Linux i386, covering both C interpreter (`arch = c`) and i386 assembly interpreter plus JIT configurations.
+- Every test case is a class with `main` that prints a fixed pass marker; a script aggregates the results.
+- On this basis, integrate CI (Linux i386 and Win32 i386 builds plus smoke tests).
 
-### 8.2 用例
+### 8.2 Test Cases
 
-| 类别 | 内容 |
+| Category | Contents |
 |---|---|
-| 正向：语言特性 | 第 5 节表格每行至少一个用例；另加泛型桥方法、协变返回、内部类访问合成方法、嵌套 try-with-resources、枚举 switch |
-| 正向：StackMapTable | 覆盖全部帧类型，含 long/double 局部变量、`<init>` 中的未初始化 `this`、`new` 后未初始化对象跨分支 |
-| 反向：StackMapTable | 4.3 列出的每条检查一个畸形 class 文件，全部必须被拒绝且不崩溃。用字节数组或汇编工具生成 |
-| 反向：版本与常量池 | 版本 52 被拒绝；含 `InvokeDynamic` 常量或 0xBA 字节码被拒绝并给出明确信息；版本 48 的类使用 `ldc` 类常量被拒绝 |
-| 数组 `clone` | 基本类型数组、引用数组、多维数组、长度为 0 的数组；结果是独立副本；`null` 接收者抛 NPE；枚举 `values()` 两次调用返回不同数组。反向：在非数组类型上的 `clone` 方法引用被拒绝；数组类上名字或描述符不符的方法引用被拒绝 |
-| 回归 | 用 1.4 目标编译并 preverify 的旧类在新 VM 上行为不变；`ENABLE_CLDC_8=false` 的构建产物可运行 |
-| 差分 | 同一批 class 文件分别交给 HotSpot（`-Xverify:all`）和本 VM，校验结论必须一致 |
-| 模糊 | 对合法 class 文件做字节变异后喂给解析器，在 AddressSanitizer 构建下运行，不允许内存错误 |
-| ROM | 新类库整体 ROM 化后启动；枚举 `valueOf` 在 ROM 化的系统类和动态加载的应用类上都正确 |
+| Positive: language features | At least one test case per row of the Section 5 table; also generic bridge methods, covariant returns, synthetic methods for inner-class access, nested try-with-resources, and enum switch |
+| Positive: `StackMapTable` | Cover every frame type, including long/double locals, uninitialized `this` in `<init>`, and uninitialized objects after `new` across branches |
+| Negative: `StackMapTable` | One malformed class file for each check listed in 4.3; all must be rejected without crashing. Generate using byte arrays or assembly tools |
+| Negative: versions and constant pool | 52 is rejected; a class with an `InvokeDynamic` constant or 0xBA bytecode is rejected with a clear message; a version-48 class using an `ldc` class constant is rejected |
+| Array `clone` | Primitive arrays, reference arrays, multidimensional arrays, and arrays with length zero; results are independent copies; `null` receiver throws NPE; enum `values()` calls return different arrays. Negative: a `clone` method reference on a non-array type is rejected; a method reference on an array class with a mismatched name or descriptor is rejected |
+| Regression | Old classes compiled with 1.4 target and preverified behave unchanged in the new VM; builds with `ENABLE_CLDC_8=false` run |
+| Differential | Send the same batch of class files to HotSpot (`-Xverify:all`) and this VM and require identical verification conclusions |
+| Fuzz | Mutate bytes in valid class files and feed them to the parser, run under an AddressSanitizer build, and allow no memory errors |
+| ROM | Start after ROMizing the new class library as a whole; `Enum.valueOf` works with both ROMized system classes and dynamically loaded application classes |
 
-反向用例和模糊测试是硬性要求：`StackMapTable` 解析器处理的是不可信输入，出错即是内存安全问题。
+Negative cases and fuzz testing are hard requirements: the `StackMapTable` parser handles untrusted input, and an error is a memory-safety issue.
 
-## 9. P3、P4 概要
+## 9. P3 and P4 Summary
 
-### P3：CLDC 8 类库
+### P3: CLDC 8 Class Library
 
-按包分批，每批独立可裁剪。建议顺序（按对应用的价值）：
+Add packages in batches, each independently configurable. Recommended order (by value to applications):
 
-1. `java.util` 集合框架：`Collection`、`List`、`Map`、`Set`、`ArrayList`、`HashMap`、`Arrays`、`Collections` 等。
-2. `java.lang` 补全：`Character` 的 Unicode 支持扩展、`String` 新方法、`ThreadLocal`、`StackTraceElement` 等。
-3. `java.io` 补全：`Reader`、`Writer` 系列的缺失类。
-4. `java.nio` 子集：`ByteBuffer` 等缓冲区类。直接缓冲区涉及 VM 和 DIO，需要单独设计。
-5. `java.security` 权限模型：`Permission`、`AccessController`、`Policy`。与现有 `org.joshvm.security.internal` 的关系需要单独设计。
-6. `java.util.logging`。
-7. GCF（`javax.microedition.io`）扩展。
+1. `java.util` collection framework: `Collection`, `List`, `Map`, `Set`, `ArrayList`, `HashMap`, `Arrays`, `Collections`, etc.
+2. Completion of `java.lang`: Unicode support extensions for `Character`, new `String` methods, `ThreadLocal`, `StackTraceElement`, etc.
+3. Completion of `java.io`: missing classes in the `Reader` and `Writer` families.
+4. `java.nio` subset: buffer classes such as `ByteBuffer`. Direct buffers involve the VM and DIO and require separate design.
+5. `java.security` permission model: `Permission`, `AccessController`, `Policy`. The relationship with existing `org.joshvm.security.internal` requires separate design.
+6. `java.util.logging`.
+7. GCF (`javax.microedition.io`) extensions.
 
-具体类和方法清单必须以 JSR 360 规范为准，上面的列表是凭记忆写的。
+Specific class and method lists must follow the JSR 360 specification; the list above is based on memory.
 
-### P4：MEEP 8
+### P4: MEEP 8
 
-范围最不确定，依赖规范核对。预计涉及应用模型、应用间通信、共享库、事件机制，
-以及与现有 `jams`、`ENABLE_ISOLATES` 多任务机制的整合。P3 进行中再启动设计。
+The scope is the least certain and depends on specification verification. It is expected to involve the application model, inter-application communication, shared libraries,
+event mechanisms, and integration with the existing `jams` and `ENABLE_ISOLATES` multi-tasking mechanism. Start design during P3.
 
-## 10. 待核对项
+## 10. Items Pending Verification
 
-### 已确认（项目负责人，2026-11-18）
+### Confirmed (Project Lead, 2026-11-18)
 
-| # | 问题 | 结论 | 对设计的影响 |
+| # | Question | Conclusion | Impact on the design |
 |---|---|---|---|
-| 1 | class 文件版本上限 | 51 | 与 4.1 一致 |
-| 2 | 是否支持 `invokedynamic` | 不支持 | 与 4.2 一致 |
-| 3 | VM 是否直接接受 `StackMapTable` | 是 | 与 4.3 一致 |
-| 4 | `Object.clone` 是否在 CLDC 8 的 `Object` 中 | 不在 | 4.8 改为只支持数组 `clone` |
+| 1 | Maximum class-file version | 51 | Consistent with 4.1 |
+| 2 | Support for `invokedynamic` | Unsupported | Consistent with 4.2 |
+| 3 | Direct acceptance of `StackMapTable` by the VM | Yes | Consistent with 4.3 |
+| 4 | Whether `Object.clone` is in CLDC 8 `Object` | No | Change 4.8 to array `clone` only |
 
-### 仍待核对
+### Still Pending Verification
 
-开工前对照规范原文确认。
+Confirm against the specification text before starting work.
 
-| # | 问题 | 影响 |
+| # | Question | Impact |
 |---|---|---|
-| 5 | CLDC 8 是否要求运行时可见注解或任何反射能力 | 决定 4.6 是否需要保存注解 |
-| 6 | CLDC 8 对版本 50 以下、没有任何栈映射的类是否要求类型推导校验 | 决定是否需要实现推导校验器（工作量大） |
-| 7 | P3 的完整 API 清单 | P3 的工作量 |
-| 8 | 较新的 JDK 对 `-target 1.7` 的支持截止版本 | 构建环境文档 |
-| 9 | TCK 的获取条件和许可 | 对外的兼容性表述 |
+| 5 | Does CLDC 8 require runtime-visible annotations or any reflection capability | Determines whether 4.6 needs to retain annotations |
+| 6 | Does CLDC 8 require type-inference verification for classes below version 50 that have no stack maps | Determines whether a verifier with inference must be implemented (large effort) |
+| 7 | Complete P3 API list | P3 effort |
+| 8 | Newer-JDK cutoff version for `-target 1.7` support | Build-environment documentation |
+| 9 | TCK acquisition terms and license | External compatibility statements |
 
-### 代码侧已查清（读代码得出，未经运行验证）
+### Code-Side Conclusions (From Code Reading, Not Runtime-Verified)
 
-| 问题 | 结论 | 位置 |
+| Question | Conclusion | Location |
 |---|---|---|
-| 45.3 特判 | 只针对 JDK 1.1 编译的类里 "abstract + strictfp" 方法的放行，与新版本无关，不用改 | `ClassFileParser.cpp:716-722` |
-| 0xBA 是否被占用 | 没有，定义为 `_xxxunusedxxx`；字节码遍历里没有它的分支，会落到 `illegal_code` 被拒绝。只需加一条明确的错误信息 | `Bytecodes.hpp:228`、`Method.cpp:2153-2159` |
-| `jsr`、`ret` | 字节码遍历里同样没有分支，已经被当作非法指令拒绝，不用改 | `Method.cpp` 的 `iterate_bytecode` |
-| 内部 synthetic 标志的消费者 | 只有 `Field::is_synthetic()` 一个访问器，没有找到调用者。结论：4.5 中 `ACC_SYNTHETIC` 的映射可以不做 | `Field.hpp:62` |
-| `jcc` 是否在构建流程中 | 在：用它从 `classes.zip` 生成 native 函数表。它读 class 文件时版本检查已被注释掉，但只认 `StackMap` 属性；需要确认它遇到 `StackMapTable` 是跳过还是报错 | `jvm.make:780-782`、`jcc/util/ClassFile.java:104-110` |
-| 虚方法表的覆盖匹配 | 同时比较名字和完整描述符，桥方法不会与目标方法混淆 | `InstanceClass.cpp:825` |
-| 方法解析路径 | `resolve_invoke_virtual_at` → `lookup_method_at` → `resolve_helper` 取出所属类，再调 `lookup_method`。4.8 的数组 `clone` 识别应放在 `lookup_method_at` 中、调用 `lookup_method` 之前 | `ConstantPool.cpp:381-408, 531-566` |
+| 45.3 special case | Only permits methods with "abstract + strictfp" in classes compiled by JDK 1.1 and is unrelated to new versions; no change needed | `ClassFileParser.cpp:716-722` |
+| Is 0xBA already used | No; it is defined as `_xxxunusedxxx`; the bytecode traversal has no branch for it, so it falls through to `illegal_code` and is rejected. Only a clear error message is needed | `Bytecodes.hpp:228`, `Method.cpp:2153-2159` |
+| `jsr`, `ret` | They also have no branch in bytecode traversal and are already rejected as illegal instructions; no change needed | `iterate_bytecode` in `Method.cpp` |
+| Internal synthetic flag consumers | Only the `Field::is_synthetic()` accessor; no callers were found. Conclusion: the `ACC_SYNTHETIC` mapping in 4.5 is optional | `Field.hpp:62` |
+| Is `jcc` used in the build flow | Yes: it is used to generate the native-function table from `classes.zip`. Its class-file version check is commented out, but it recognizes only `StackMap`; confirm whether it skips or reports an error for `StackMapTable` | `jvm.make:780-782`, `jcc/util/ClassFile.java:104-110` |
+| Virtual-method-table override matching | Compares both name and full descriptor, so bridge methods are not confused with target methods | `InstanceClass.cpp:825` |
+| Method-resolution path | `resolve_invoke_virtual_at` → `lookup_method_at` → `resolve_helper` extracts the owner, then calls `lookup_method`. Array-`clone` recognition for 4.8 should be placed in `lookup_method_at`, before the call to `lookup_method` | `ConstantPool.cpp:381-408, 531-566` |
 
-**调查中发现的一个既有隐患**：`resolve_helper` 把方法引用的所属类直接放进 `InstanceClass` 句柄
-（`HotRoutines.incl.hpp:632-647`），没有检查它是不是数组类；随后 `lookup_method_at` 在其上调用
-`InstanceClass::lookup_method`。如果 class 文件里的方法引用以数组类为所属类，产品构建下可能把
-数组类当成实例类访问。我没有验证它能否实际触发，也没有查校验器是否在更早的地方拦住了。
-实现 4.8 时必须一并处理：所属类为数组类时，`clone` 走专用入口，其他名字一律按 `Object` 查找或抛
-`NoSuchMethodError`，不能落到现有路径上。
+**Existing hazard found during investigation**: `resolve_helper` directly places the method-reference owner in an `InstanceClass`
+handle (`HotRoutines.incl.hpp:632-647`) without checking whether it is an array class; `lookup_method_at` then calls
+`InstanceClass::lookup_method` on it. If a class file has an array class as the method-reference owner, the product build may
+treat the array class as an instance class. I have not verified whether this can actually occur, nor whether the verifier blocks it earlier.
+Implementation of 4.8 must address this together: when the owner is an array class, `clone` goes through a dedicated entry; every
+other name is resolved through `Object` or throws `NoSuchMethodError`, and must never fall through to the existing path.
 
-### 代码侧待确认项的结论
+### Conclusions for Pending Code-Side Items
 
-- `jcc` 遇到 `StackMapTable`：能正常生成 native 表（`ENABLE_CLDC_8` 构建通过）。
-- 4.8 的入口形式：见"实施状态"的偏差表。
-- javac 在类库没有 `Object.clone` 和 `Cloneable` 时能编译数组 `clone` 和枚举；但枚举的 `switch`
-  需要类库里有 `NoSuchFieldError`。
-- 数组类方法引用的隐患能实际触发：改动前 debug VM 在这样的类上断言失败，已修复并有测试。
-- 受 4.9 约束的类的完整清单：没有做。
+- `jcc` with `StackMapTable`: native tables generate normally (`ENABLE_CLDC_8` build passes).
+- Entry form for 4.8: see the deviations table in "Implementation Status."
+- javac can compile array `clone` and enums when the class library lacks `Object.clone` and `Cloneable`; enum `switch`
+  requires `NoSuchFieldError` in the class library.
+- The array-class method-reference hazard can occur: before the change, the debug VM asserted and failed on such a class; it is now fixed and covered by tests.
+- Complete list of classes constrained by 4.9: not done.
 
-### 构建环境
+### Build Environment
 
-见"实施状态"一节的"构建和测试"。
+See the "Build and Tests" part of "Implementation Status."
 
-## 11. 里程碑与依赖
+## 11. Milestones and Dependencies
 
-工作量用相对规模表示（S、M、L），没有做人日估算。
+Workload is represented by relative size (S, M, L), with no person-day estimate.
 
-| # | 任务 | 规模 | 依赖 |
+| # | Task | Size | Dependencies |
 |---|---|---|---|
-| M0 | 核对第 10 节剩余项；javac 编译枚举的小实验（4.8）；搭测试框架和 CI | M | — |
-| M1 | 版本号、常量池拒绝路径、访问标志（4.1、4.2、4.5、4.6） | S | M0 |
-| M2 | `StackMapTable` 解析及正反向测试（4.3） | L | M1 |
-| M3 | `ldc` 类常量，方案 A（4.4） | M | M1 |
-| M4 | 构建开关、`cldc8` 目录、javac 1.7、跳过 preverify（第 3、6 节） | M | M2 |
-| M5 | 数组 `clone`（4.8）；布局约束清单和断言（4.9） | M | M4 |
-| M6 | P2 类库（第 5 节） | L | M3、M5 |
-| M7 | ROM 优化器验证、桥方法验证、调试器验证、体积测量 | M | M6 |
-| M8 | `ldc` 类常量方案 B 及 JIT 支持（按测量结果决定是否做） | M | M7 |
+| M0 | Resolve remaining Section 10 items; small javac enum compilation experiment (4.8); set up test framework and CI | M | — |
+| M1 | Version number, constant-pool rejection path, access flags (4.1, 4.2, 4.5, 4.6) | S | M0 |
+| M2 | `StackMapTable` parsing and positive/negative tests (4.3) | L | M1 |
+| M3 | `ldc` class constants, Plan A (4.4) | M | M1 |
+| M4 | Build switch, `cldc8` directory, javac 1.7, skip preverify (Sections 3 and 6) | M | M2 |
+| M5 | Array `clone` (4.8); layout constraint checklist and assertions (4.9) | M | M4 |
+| M6 | P2 class library (Section 5) | L | M3, M5 |
+| M7 | ROM optimizer verification, bridge-method verification, debugger verification, size measurement | M | M6 |
+| M8 | `ldc` class constants Plan B and JIT support (decide based on measurements) | M | M7 |
 
-M2 与 M3 可以并行。M7 结束即 P1、P2 交付，此时用 Java 7 语法写的应用可以在 JOSHVM 上运行。
+M2 and M3 can run in parallel. P1 and P2 are delivered at the end of M7, at which point applications written with Java 7 syntax can run on JOSHVM.
 
-## 12. 主要风险
+## 12. Main Risks
 
-| 风险 | 应对 |
+| Risk | Mitigation |
 |---|---|
-| 校验器规则与 JVMS 7 有细微出入，造成漏洞或误拒 | 差分测试加模糊测试（8.2）；M2 单独评审 |
-| ROM 优化器对新模式（桥方法、类常量、枚举字段）处理错误，且只在 ROM 化后暴露 | M7 专门验证；必要时对新类库先关闭相关优化 |
-| 体积超出低端 MCU 承受范围 | 保留 CLDC 1.1.1 配置；每阶段测量；P3 按包裁剪 |
-| 四个 CPU 后端的 `ldc` 模板改动无法全部实机验证 | 方案 A 把改动限制在慢路径；i386 在 CI 中覆盖，ARM 系列需要硬件或模拟器 |
-| 规范理解有误 | M0 先核对第 10 节 |
+| Verifier rules differ subtly from JVMS 7, causing vulnerabilities or false rejections | Differential testing plus fuzz testing (8.2); separate M2 review |
+| ROM optimizer mishandles new patterns (bridge methods, class constants, enum fields) and only exposes them after ROMization | Dedicated M7 verification; if necessary, disable related optimizations for the new class library |
+| Size exceeds low-end MCU capacity | Preserve the CLDC 1.1.1 configuration; measure every phase; trim P3 by package |
+| `ldc` template changes for four CPU backends cannot all be verified on real hardware | Plan A limits changes to the slow path; cover i386 in CI; ARM families require hardware or an emulator |
+| Misunderstanding the specification | Verify Section 10 first in M0 |
