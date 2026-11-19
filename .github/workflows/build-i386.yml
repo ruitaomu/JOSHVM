@@ -91,12 +91,10 @@ jobs:
       - name: Build and test Win32 i386 with MinGW-w64
         shell: pwsh
         run: |
-          cmd.exe /d /c 'C:\msys64\usr\bin\bash.exe --login -lc "true" || exit /b 0'
-          C:\msys64\usr\bin\bash.exe --login -lc '
+          $env:MSYSTEM = "MINGW32"
+          $env:CHERE_INVOKING = "1"
+          C:\msys64\usr\bin\bash.exe -lc '
             set -e
-            export MSYSTEM=MINGW32
-            export CHERE_INVOKING=1
-            source /etc/profile
             export PATH="/mingw32/bin:/usr/bin:$PATH"
             pacman --noconfirm --needed -S \
               mingw-w64-i686-toolchain mingw-w64-i686-gcc \
