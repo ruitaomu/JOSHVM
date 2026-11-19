@@ -31,6 +31,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <windows.h>
 
 
 #include "javacall_memory.h"
@@ -42,6 +43,10 @@
  * VM will use this memory heap for internal memory allocation/deallocation
  * Will be called ONCE during VM startup!
  *
+ * The VM stores JIT-compiled code inside this heap, so it must be
+ * executable. malloc() memory is not executable when DEP is enforced,
+ * which makes the VM crash as soon as it jumps into compiled code.
+ *
  * @param    size required heap size in bytes
  * @param    outSize actual size of memory allocated
  * @return  a pointer to the newly allocated memory,
@@ -49,9 +54,8 @@
  */
 void* javacall_memory_heap_allocate(long size, long* outSize) {
 
-    void *ptr = NULL;
-
-    ptr = malloc(size);
+    void *ptr = VirtualAlloc(NULL, (SIZE_T)size, MEM_COMMIT | MEM_RESERVE,
+                             PAGE_EXECUTE_READWRITE);
     if (ptr == NULL){
         *outSize = 0;
     } else {
@@ -69,7 +73,9 @@ void* javacall_memory_heap_allocate(long size, long* outSize) {
  */
 void javacall_memory_heap_deallocate(void* heap) {
 
-    free(heap);
+    if (heap != NULL) {
+        VirtualFree(heap, 0, MEM_RELEASE);
+    }
 }
 
 /**

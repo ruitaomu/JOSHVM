@@ -14,11 +14,15 @@
 #   PREVERIFY     preverify executable for the legacy test
 #   FUZZ_COUNT    number of randomly damaged classes to try (default 40)
 #   SKIP_DEBUG_JIT  true to skip positive tests on the debug VM with the
-#                 compiler enabled (Win32: see issue #4)
+#                 compiler enabled (default and -comp modes; Win32: issue #4)
 #
-# Each positive test is run with the compiler enabled and with -int, and
-# must print PASS as its last line. Each negative test is a class patched
-# by tools/ClassPatcher; the VM must reject it with the expected message.
+# Each positive test is run three times: with the compiler enabled (methods
+# are compiled when they get hot), with -int (interpreter only) and with
+# -comp (+UseCompiler -MixedMode: every method is compiled before it is
+# first executed, so the compiler is exercised even by tests that finish
+# before a timer tick). It must print PASS as its last line. Each negative
+# test is a class patched by tools/ClassPatcher; the VM must reject it with
+# the expected message.
 
 ROOT=`cd \`dirname $0\`/../.. && pwd`
 case `uname -s 2>/dev/null` in
@@ -77,9 +81,9 @@ run_vm() { # vm mode classpath class
 
 expect_pass() { # label classpath class
     for vm in $VMS; do
-        for mode in "" "-int"; do
+        for mode in "" "-int" "-comp"; do
             case "$SKIP_DEBUG_JIT:$vm:$mode" in
-              true:*_g*:)
+              true:*_g*:|true:*_g*:-comp)
                 skipped=`expr $skipped + 1`
                 echo "skipped $1 [$vm $mode]"
                 continue

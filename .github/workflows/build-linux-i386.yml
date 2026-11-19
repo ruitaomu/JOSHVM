@@ -64,8 +64,6 @@ jobs:
             export JDK_DIR="$(cygpath -m "$JAVA_HOME")"
             # The API documentation does not pass the JDK 8 javadoc checks
             export BUILD_SDK=false
-            # The debug VM dies when it runs compiled code: issue #4
-            export SKIP_DEBUG_JIT=true
             export ENABLE_CLDC_8=false
             ./build-win32-cldc.sh -C -J "$JDK_DIR"
             JDK_DIR="$JDK_DIR" test/vm/run-tests.sh
