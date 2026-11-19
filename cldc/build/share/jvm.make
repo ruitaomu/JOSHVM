@@ -56,7 +56,14 @@ CLDC_ZIP             = $(BuildSpace)/classes.zip
 CLASSES              = $(BuildSpace)/classes
 TMPCLASSES           = $(BuildSpace)/tmpclasses
 JAVA		     = $(JDK_DIR)/bin/java
-JAVAC                = $(JDK_DIR)/bin/javac -source 1.4 -target 1.4
+# The Java 7 class library is not preverified: its classes carry
+# StackMapTable attributes, which the VM verifies directly.
+ifeq ($(ENABLE_CLDC_8), true)
+JAVAC_LEVEL          = 1.7
+else
+JAVAC_LEVEL          = 1.4
+endif
+JAVAC                = $(JDK_DIR)/bin/javac -source $(JAVAC_LEVEL) -target $(JAVAC_LEVEL)
 JAVAC_DEBUG          = :none
 JAR                  = $(JDK_DIR)/bin/jar
 VMSRC_DIR            = $(WorkSpace)/src/vm
@@ -378,8 +385,14 @@ LOOP_GEN_ARG_release = $(DETERMINISTIC_FLAG) -generateoptimized
 LOOP_GEN_ARG_product = $(DETERMINISTIC_FLAG) -generateoptimized
 LOOP_GEN_ARG        += $(LOOP_GEN_ARG_$(BUILD)) $(LOOP_GEN_FLAGS)
 
-PREVERIFY_ORIGINAL   = $(HOST_TOOLS_DIR)/preverify$(HOST_EXE_SUFFIX)
+PREVERIFY_ORIGINAL  ?= $(HOST_TOOLS_DIR)/preverify$(HOST_EXE_SUFFIX)
 PREVERIFY            = $(DIST_BIN_DIR)/preverify$(HOST_EXE_SUFFIX)
+
+# Optional prefix for running host-side generators (preverify, loopgen,
+# romgen), e.g. HOST_EXE_RUN=qemu-i386 on hosts that cannot execute 32-bit
+# x86 binaries natively. Empty by default.
+HOST_EXE_RUN        ?=
+export HOST_EXE_RUN
 
 CHMOD                = chmod
 
@@ -683,25 +696,26 @@ ANIX_LIB           = $(BIN_DIR)/$(ANIX_LIB_NAME)
 # -------------------------------------------------------
 $(CLDC_ZIP): $(JAVA_FILES)
 	$(A)echo "=============================="
-	$(A)num=`echo $? | wc -w`; \
-         num=`echo $$num | cut -f1 -d' '`; \
-	 num=`echo $$num`; \
-         echo "compiling $(CLDC_LIB) classes ($$num files)..."
+	$(A)echo "compiling $(CLDC_LIB) classes ($(words $?) files)..."
 	$(A)if test ! -d $(TMPCLASSES); then \
             mkdir $(TMPCLASSES); \
         fi
-	$(A)files="$?"; \
-	 if test "$$files" = ""; then exit 1; fi; \
-	 echo "$$files" > $(BuildSpace)/tmpjavasrcfilelist; \
+	$(file >$(BuildSpace)/tmpjavasrcfilelist,$?)
+	$(A)if test ! -s $(BuildSpace)/tmpjavasrcfilelist; then exit 1; fi; \
 	 $(JAVAC) -g$(JAVAC_DEBUG) -d $(TMPCLASSES) \
                   -bootclasspath $(CLASSES) \
                   -classpath $(CLASSES) @$(BuildSpace)/tmpjavasrcfilelist
+ifeq ($(ENABLE_CLDC_8), true)
+	$(A)mkdir -p $(CLASSES)
+	$(A)cp -r $(TMPCLASSES)/. $(CLASSES)
+else
 	$(A)echo "preverifying classes...";
 	$(A)if test ! -f $(PREVERIFY); then \
 		$(MAKE) $(PREVERIFY) ; \
 	fi
 	$(A)chmod a+rx $(PREVERIFY)
-	$(A)$(PREVERIFY) -classpath $(CLASSES) -d $(CLASSES) $(TMPCLASSES)
+	$(A)$(HOST_EXE_RUN) $(PREVERIFY) -classpath $(CLASSES) -d $(CLASSES) $(TMPCLASSES)
+endif
 	$(A)echo rm -rf $@ $(TMPCLASSES)
 	$(A)$(JAR) -cfM0 $@ -C $(CLASSES) .
 	$(A)echo "=============================="
@@ -802,7 +816,7 @@ $(GENERATED_ROM_FILE): $(ROM_GENERATOR) $(CLDC_ZIP) \
 	@for f in $(ROMGEN_CFG_FILES); do \
 		echo "Include $$f" >> $(ROMGEN_CFG_LST); \
 	 done
-	$(ROM_GENERATOR) -cp $(ROM_GEN_CLASSPATH) $(ROM_GEN_ARG) -romize
+	$(HOST_EXE_RUN) $(ROM_GENERATOR) -cp $(ROM_GEN_CLASSPATH) $(ROM_GEN_ARG) -romize
 	$(A)mv ROMImage*.*pp `dirname $@`;
 	$(A)mv ROMLog.txt $(GEN_DIR)
 
@@ -851,12 +865,12 @@ test-romize-quick:: $(ROM_GENERATOR)
 
 ifneq ($(IsRomGen), true)
 Interpreter_$(arch)$(ASM_SUFFIX): $(LOOP_GENERATOR)
-	$(LOOP_GENERATOR) $(LOOP_GEN_ARG)
+	$(HOST_EXE_RUN) $(LOOP_GENERATOR) $(LOOP_GEN_ARG)
 
 OopMaps.obj: OopMaps.cpp
 
 OopMaps.cpp: $(ROM_GENERATOR)
-	$(ROM_GENERATOR) +GenerateOopMaps
+	$(HOST_EXE_RUN) $(ROM_GENERATOR) +GenerateOopMaps
 else
 # Who generates the Interpreter_xxx.asm and OopMaps.cpp file for the ROMgen?
 # A ROMgen is really a self-hosted VM build. It knows how to generate the
@@ -2081,7 +2095,13 @@ CPP_DEF_FLAGS	        += $(CPP_DEF_FLAGS_$(BUILD))
 # C compiler flags
 CPP_DEF_FLAGS           += -pipe -DGCC
 CPP_DEF_FLAGS           += -Wreturn-type -Wcomment -Wparentheses -Wformat
-CPP_DEF_FLAGS           += -fstrict-aliasing
+# This code base predates several assumptions modern GCC (6 and later)
+# optimizes on: it calls member functions through NULL handles, type-puns
+# freely, and sets object fields in operator new before the constructor runs.
+CPP_DEF_FLAGS           += -fno-strict-aliasing -fno-delete-null-pointer-checks
+CPP_DEF_FLAGS           += -fno-lifetime-dse -fwrapv
+# The generated ROM image initializes int arrays with unsigned constants.
+CPLUSPLUS_FLAGS         += -Wno-narrowing
 
 # C++ specific compiler flags
 CPLUSPLUS_FLAGS         += -fno-gnu-keywords
@@ -2260,7 +2280,7 @@ ifeq ($(ENABLE_C_INTERPRETER), true)
 
 ifdef carch
 $(GP_TABLE_OBJ): $(LOOP_GENERATOR)
-	$(A)$(LOOP_GENERATOR) -generate +GenerateGPTableOnly +GenerateGNUCode \
+	$(A)$(HOST_EXE_RUN) $(LOOP_GENERATOR) -generate +GenerateGPTableOnly +GenerateGNUCode \
 		$(LOOP_GEN_ARG)
 	if test "$(carch)" = "thumb"; then \
 	    mv $(THIS_DIR)/Interpreter_arm.s \
@@ -2275,7 +2295,7 @@ $(ROM_GENERATOR): $(CLDC_ZIP) $(Obj_Files) OopMapsSkeleton$(OBJ_SUFFIX) \
 	$(A)echo "linking ROM generator: $(ROM_GENERATOR)"
 	$(A)$(LINK) -o $@ $(Obj_Files) OopMapsSkeleton$(OBJ_SUFFIX) \
 	          $(GP_TABLE_OBJ) $(PCSL_LIBS) $(LINK_FLAGS)
-	$(A)$(ROM_GENERATOR) +GenerateOopMaps
+	$(A)$(HOST_EXE_RUN) $(ROM_GENERATOR) +GenerateOopMaps
 	$(A)$(MAKE) OopMaps$(OBJ_SUFFIX)
 	$(A)echo "re-linking ROM generator: $(ROM_GENERATOR)"
 	$(A)$(LINK) -o $@ $(Obj_Files) OopMaps$(OBJ_SUFFIX) $(GP_TABLE_OBJ) \
@@ -2288,8 +2308,8 @@ $(ROM_GENERATOR): $(CLDC_ZIP) $(Obj_Files) InterpreterSkeleton$(OBJ_SUFFIX) \
 	$(A)$(LINK) $(Obj_Files) InterpreterSkeleton$(OBJ_SUFFIX) \
 		OopMapsSkeleton$(OBJ_SUFFIX) \
 		-o $@ $(PCSL_LIBS) $(LINK_FLAGS)
-	$(A)$(ROM_GENERATOR) $(LOOP_GEN_ARG)
-	$(A)$(ROM_GENERATOR) +GenerateOopMaps
+	$(A)$(HOST_EXE_RUN) $(ROM_GENERATOR) $(LOOP_GEN_ARG)
+	$(A)$(HOST_EXE_RUN) $(ROM_GENERATOR) +GenerateOopMaps
 	$(A)$(MAKE) Interpreter_$(arch)$(OBJ_SUFFIX)
 	$(A)$(MAKE) OopMaps$(OBJ_SUFFIX)
 	$(A)$(LINK) -o $@ \

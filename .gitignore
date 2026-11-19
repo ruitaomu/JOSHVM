@@ -61,6 +61,7 @@ cscope.files
 preverifier/build/linux/preverify
 preverifier/build/win32/preverify.exe
 cldc/build/tmpjavasrcfilelist
+cldc/build/*/java_files.mk
 cldc/build/josh_api.jar
 *.opensdf
 

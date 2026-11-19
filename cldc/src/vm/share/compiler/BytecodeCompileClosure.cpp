@@ -108,6 +108,41 @@ void BytecodeCompileClosure::push_obj(Oop* value JVM_TRAPS) {
   frame_push(v);
 }
 
+// The class object depends on the current task and may have to be created,
+// so compiled code gets it from the runtime. The class is passed by id:
+// the frame's bci is that of the caller when this method is inlined.
+void BytecodeCompileClosure::push_class_constant(int cp_index JVM_TRAPS) {
+  if (GenerateROMImage) {
+    __ uncommon_trap(JVM_SINGLE_ARG_NO_CHECK_AT_BOTTOM);
+    return;
+  }
+
+  UsingFastOops fast_oops;
+  // Leave loading an unresolved class to the interpreter
+  JavaClass::Fast klass = get_klass_or_null(cp_index, false JVM_CHECK);
+  if (klass.is_null()) {
+    __ uncommon_trap(JVM_SINGLE_ARG_NO_CHECK_AT_BOTTOM);
+    return;
+  }
+
+  InstanceClass::Fast sender_class = method()->holder();
+  klass().check_access_by(&sender_class, ErrorOnFailure JVM_NO_CHECK);
+  if (CURRENT_HAS_PENDING_EXCEPTION) {
+    // The interpreter throws the error
+    Thread::clear_current_pending_exception();
+    __ uncommon_trap(JVM_SINGLE_ARG_NO_CHECK_AT_BOTTOM);
+    return;
+  }
+
+  frame()->flush(JVM_SINGLE_ARG_CHECK);
+  __ call_vm_extra_arg((int)klass().class_id());
+  __ call_vm((address)compiled_code_ldc_class, T_OBJECT JVM_CHECK);
+
+  Value result(T_OBJECT);
+  result.set_register(RegisterAllocator::allocate(Assembler::return_register));
+  frame_push(result);
+}
+
 void BytecodeCompileClosure::push_float(jfloat value JVM_TRAPS) {
   JVM_IGNORE_TRAPS;
 #if ENABLE_FLOAT

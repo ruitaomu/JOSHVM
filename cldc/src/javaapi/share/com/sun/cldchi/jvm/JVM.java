@@ -287,4 +287,14 @@ public class JVM {
     private static native int verifyNextChunk(String jar, int nextChunkID,
                                               int chunkSize);
 
+    /**
+     * Copies an array. Never called from Java code: the VM binds an
+     * <code>invokevirtual</code> of <code>clone()</code> on an array type
+     * to this method, so the receiver is the array to copy, not a
+     * <code>JVM</code> object. (<code>java.lang.Object</code> has no
+     * <code>clone()</code> in this library; arrays are the only cloneable
+     * objects.)
+     */
+    private final native Object cloneArray();
+
 }

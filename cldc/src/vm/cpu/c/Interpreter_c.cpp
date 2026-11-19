@@ -44,6 +44,7 @@ extern "C" {
   // external interpreter runtime routines, see InterpreterRuntime_<arch>.cpp
   // and  InterpreterRuntime.cpp
   extern OopDesc*        anewarray(Thread *THREAD);
+  extern OopDesc*        ldc_class(Thread *THREAD);
   extern OopDesc*        _newarray(Thread *THREAD, BasicType type, jint len);
   extern void            signal_waiters(Thread *THREAD,
                                         StackLock* stack_lock);
@@ -2487,11 +2488,25 @@ enum {
   BYTECODE_IMPL_END
 
   BYTECODE_IMPL_NO_STEP(ldc)
-    interpreter_call_vm_redo((address)&quicken, T_INT);
+    interpreter_call_vm_dispatch((address)&quicken, T_INT);
   BYTECODE_IMPL_END
 
   BYTECODE_IMPL_NO_STEP(ldc_w)
-    interpreter_call_vm_redo((address)&quicken, T_INT);
+    interpreter_call_vm_dispatch((address)&quicken, T_INT);
+  BYTECODE_IMPL_END
+
+  BYTECODE_IMPL_NO_STEP(fast_class_ldc)
+    if (!interpreter_call_vm((address)&ldc_class, T_OBJECT)) {
+      PUSH(GET_THREAD_INT(obj_value));
+      ADVANCE(2);
+    }
+  BYTECODE_IMPL_END
+
+  BYTECODE_IMPL_NO_STEP(fast_class_ldc_w)
+    if (!interpreter_call_vm((address)&ldc_class, T_OBJECT)) {
+      PUSH(GET_THREAD_INT(obj_value));
+      ADVANCE(3);
+    }
   BYTECODE_IMPL_END
 
   BYTECODE_IMPL_NO_STEP(ldc2_w)
@@ -4475,6 +4490,8 @@ static void init_dispatch_table() {
   DEF_BC(fast_init_2_getstatic);
   DEF_BC(fast_init_invokestatic);
   DEF_BC(fast_init_new);
+  DEF_BC(fast_class_ldc);
+  DEF_BC(fast_class_ldc_w);
 }
 #undef DEF_BC
 #undef DEF_BC_WIDE

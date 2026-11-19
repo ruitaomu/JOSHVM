@@ -187,6 +187,9 @@ end:
   pcsl_mem_finalize();
 #endif
 
-  return code;
+  // The VM reports failure as -1. Keep only the low eight bits, as POSIX
+  // does, so that the process exits with 255 on Windows too instead of
+  // 0xFFFFFFFF, which shells there take for an NTSTATUS crash code.
+  return code & 0xff;
 }
 

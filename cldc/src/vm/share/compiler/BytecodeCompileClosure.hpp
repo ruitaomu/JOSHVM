@@ -100,6 +100,7 @@ class BytecodeCompileClosure: public BytecodeClosure {
   virtual void push_int   (jint    value JVM_TRAPS);
   virtual void push_long  (jlong   value JVM_TRAPS);
   virtual void push_obj   (Oop*    value JVM_TRAPS);
+  virtual void push_class_constant(int cp_index JVM_TRAPS);
   virtual void push_float (jfloat  value JVM_TRAPS);
   virtual void push_double(jdouble value JVM_TRAPS);
 

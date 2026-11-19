@@ -18,7 +18,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <fcntl.h>
-#include <stropts.h>
 #include <errno.h>
 #include <netdb.h>
 #include <string.h>

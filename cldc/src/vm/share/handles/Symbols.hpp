@@ -48,6 +48,7 @@
   template(tag_local_var_table,    "LocalVariableTable")                    \
   template(tag_exceptions,         "Exceptions")                            \
   template(tag_stackmap,           "StackMap")                              \
+  template(tag_stackmap_table,     "StackMapTable")                         \
   template(tag_synthetic,          "Synthetic")                             \
   /* ---- Exception classes: all exceptions thrown by the VM ---- */        \
   template(java_lang_Error,        "java/lang/Error")                       \
@@ -107,9 +108,13 @@
   template(unchecked_int_arraycopy_name,   "unchecked_int_arraycopy")       \
   template(unchecked_obj_arraycopy_name,   "unchecked_obj_arraycopy")       \
   template(unchecked_long_arraycopy_name,  "unchecked_long_arraycopy")      \
+  template(clone_name,             "clone")                                 \
+  template(clone_array_name,       "cloneArray")                            \
   /* ---- common signatures ---- */                                         \
   sig_template(java_lang_Object_signature,                                  \
                                    "Ljava/lang/Object;")                    \
+  sig_template(void_java_lang_Object_signature,                             \
+                                   "()Ljava/lang/Object;")                  \
   sig_template(java_lang_Object_Object_void_signature,                      \
                                   "(Ljava/lang/Object;Ljava/lang/Object;)V")\
   sig_template(string_array_void_signature,                                 \

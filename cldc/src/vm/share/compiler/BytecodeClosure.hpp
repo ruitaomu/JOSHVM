@@ -45,6 +45,11 @@ class BytecodeClosure : public StackObj {
   virtual void push_float (jfloat  /*value*/ JVM_TRAPS) {JVM_IGNORE_TRAPS;}
   virtual void push_double(jdouble /*value*/ JVM_TRAPS) {JVM_IGNORE_TRAPS;}
   virtual void push_obj   (Oop*    /*value*/ JVM_TRAPS) {JVM_IGNORE_TRAPS;}
+  // ldc/ldc_w of a class constant: pushes the java.lang.Class object of
+  // the class at <cp_index>. The bytecode is never quickened.
+  virtual void push_class_constant(int /*cp_index*/ JVM_TRAPS) {
+    JVM_IGNORE_TRAPS;
+  }
 
   virtual void load_local(BasicType /*kind*/, int /*index*/ JVM_TRAPS) {
     JVM_IGNORE_TRAPS;

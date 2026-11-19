@@ -1495,6 +1495,14 @@ void bc_new::generate() {
   dispatch(tos_in_regs);
 }
 
+void bc_fast_class_ldc::generate(bool is_wide) {
+  set_stack_state_to(tos_on_stack);
+  interpreter_call_vm("ldc_class", T_OBJECT);
+  prefetch(is_wide ? 3 : 2);
+  set_tag(obj_tag);
+  dispatch(tos_in_regs);
+}
+
 void bc_anewarray::generate() {
   set_stack_state_to(tos_on_stack);
   interpreter_call_vm("anewarray", T_ARRAY);

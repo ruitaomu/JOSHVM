@@ -351,6 +351,11 @@ class Bytecodes: public AllStatic {
    _fast_init_invokestatic,
    _fast_init_new,
 
+   // ldc/ldc_w of a class constant. The interpreter dispatches to these
+   // from quicken(); they are never stored in a method's bytecodes.
+   _fast_class_ldc,
+   _fast_class_ldc_w,
+
     number_of_java_codes
   };
 

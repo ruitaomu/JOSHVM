@@ -140,7 +140,7 @@ endif
 #
 ifeq ($(USE_CYGWIN),true)
 define fixcygpath
-echo $(1) | xargs -n1 cygpath -w
+for p in $(1); do cygpath -w "$$p"; done
 endef
 else
 define fixcygpath

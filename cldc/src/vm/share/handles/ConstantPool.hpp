@@ -290,6 +290,7 @@ class ConstantPool: public Oop {
   ReturnOop lookup_method_at(InstanceClass *sender_class, int index,
                              Symbol* name, Symbol* signature,
                              InstanceClass* static_receiver_class JVM_TRAPS);
+  ReturnOop array_clone_method_at(int index JVM_TRAPS);
 
   // JVM_CONSTANT_ClassIndex
   int klass_index_at(int index JVM_TRAPS) {

@@ -1403,6 +1403,36 @@ int Java_com_sun_cldc_io_ResourceInputStream_readBytes(JVM_SINGLE_ARG_TRAPS) {
   return fd().get_bytes(&destination, len JVM_NO_CHECK_AT_BOTTOM_0);
 }
 
+// private final native Object cloneArray();
+// Bound by ConstantPool::array_clone_method_at() to clone() invoked on an
+// array type, so the receiver is the array to copy.
+ReturnOop Java_com_sun_cldchi_jvm_JVM_cloneArray(JVM_SINGLE_ARG_TRAPS) {
+  UsingFastOops fast_oops;
+  JavaOop::Fast source = GET_PARAMETER_AS_OOP(0);
+  if (source.is_null()) {
+    Throw::null_pointer_exception(empty_message JVM_THROW_0);
+  }
+  const int length = ((Array*)&source)->length();
+
+  if (source.is_obj_array()) {
+    FarClass::Fast klass = source().blueprint();
+    ObjArray::Fast copy =
+        Universe::allocate_array(&klass, length, sizeof(OopDesc*) JVM_CHECK_0);
+    ObjArray::array_copy((ObjArray*)&source, 0, &copy, 0, length JVM_CHECK_0);
+    return copy.obj();
+  }
+  if (source.is_type_array()) {
+    TypeArrayClass::Fast klass = source().blueprint();
+    TypeArray::Fast copy = Universe::new_type_array(&klass, length JVM_CHECK_0);
+    TypeArray::array_copy((TypeArray*)&source, 0, &copy, 0, length,
+                          klass().scale());
+    return copy.obj();
+  }
+
+  // Only reachable from unverified code
+  Throw::incompatible_class_change_error(empty_message JVM_THROW_0);
+}
+
 // static native Object clone(Object source);
 ReturnOop Java_com_sun_cldc_io_ResourceInputStream_clone(JVM_SINGLE_ARG_TRAPS) {
   return ObjectHeap::clone(GET_PARAMETER_AS_OOP(1) JVM_NO_CHECK_AT_BOTTOM);

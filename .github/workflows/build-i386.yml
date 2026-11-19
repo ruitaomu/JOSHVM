@@ -1,0 +1,77 @@
+name: Build and test i386 targets
+
+# Keep i386-specific Linux and Win32 jobs together in this workflow. Use a
+# separate workflow file for another architecture or an unrelated CI concern.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - glowing-sniffle
+  pull_request:
+    branches:
+      - master
+
+permissions:
+  contents: read
+
+jobs:
+  linux-i386:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build -t joshvm-build-linux-i386 tools/docker/linux-i386
+      - name: Build VM and run tests
+        run: docker run --rm -v "$PWD":/src joshvm-build-linux-i386
+
+  win32-i386:
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 8
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "8"
+
+      - name: Set up Visual Studio environment
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Build and test Win32 i386
+        shell: pwsh
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $vsRoot = & $vswhere -latest -products * -property installationPath
+          $vsDevCmd = Join-Path $vsRoot "Common7\Tools\VsDevCmd.bat"
+          $msvcEnv = & cmd.exe /d /c "`"$vsDevCmd`" -arch=x86 -host_arch=x64 && set"
+          foreach ($line in $msvcEnv) {
+            if ($line -match '^([^=]+)=(.*)$') {
+              [Environment]::SetEnvironmentVariable($Matches[1], $Matches[2], "Process")
+            }
+          }
+          $clDir = Join-Path $env:VCToolsInstallDir "bin\Hostx64\x86"
+          $env:PATH = "$clDir;$env:PATH"
+          $env:MSYS2_PATH_TYPE = "inherit"
+          C:\msys64\usr\bin\bash.exe --login -lc '
+            set -e
+            pacman --noconfirm --needed -S make zip unzip findutils
+            cd "$(cygpath -u "$GITHUB_WORKSPACE")"
+            VC_BIN="$(cygpath -u "$VCToolsInstallDir")/bin/Hostx64/x86"
+            export PATH="$VC_BIN:$PATH"
+            export MSYS2_ARG_CONV_EXCL="*"
+            command -v cl.exe
+            command -v link.exe
+            export JDK_DIR="$(cygpath -m "$JAVA_HOME")"
+            # The API documentation does not pass the JDK 8 javadoc checks
+            export BUILD_SDK=false
+            export ENABLE_CLDC_8=false
+            ./build-win32-cldc.sh -C -J "$JDK_DIR"
+            JDK_DIR="$JDK_DIR" test/vm/run-tests.sh
+
+            export ENABLE_CLDC_8=true
+            ./build-win32-cldc.sh -C -J "$JDK_DIR"
+            JDK_DIR="$JDK_DIR" test/vm/run-tests.sh
+          '

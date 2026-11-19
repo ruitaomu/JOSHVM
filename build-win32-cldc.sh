@@ -60,7 +60,11 @@ ENABLE_SECURITY=true
 ENABLE_SECURITY_NATIVE_RSA_SIGNATURE=false
 ENABLE_JSR280=true
 ENABLE_MEDIA=true
-BUILD_SDK=true
+# The SDK step builds the API documentation. Set BUILD_SDK=false in the
+# environment to skip it.
+: ${BUILD_SDK:=true}
+: ${ENABLE_CLDC_8:=false}
+export USE_CYGWIN=true
 
 while getopts \?J:CTcdDehjmnpr: c
 do
@@ -236,6 +240,7 @@ then
 			XMLPARSER_DIR=${XMLPARSER_DIR} \
 			LOGGING_UTIL_DIR=${LOGGING_UTIL_DIR} \
 			ENABLE_JAVACALL_TEST=${ENABLE_JAVACALL_TEST} \
+			ENABLE_CLDC_8=${ENABLE_CLDC_8} \
 			${DEBUG_OPTION}
 	fi
 	if [ $? != 0 ];then

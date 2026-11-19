@@ -54,6 +54,9 @@ ENABLE_JSR179=true
 ENABLE_SENSORS=true
 ENABLE_SECURITY=true
 ENABLE_JSR280=true
+# Java 7 language level class library; set ENABLE_CLDC_8=true in the
+# environment to enable it.
+: ${ENABLE_CLDC_8:=false}
 BUILD_SDK=false
 
 while getopts \?J:CTcdDehjpr: c
@@ -219,6 +222,7 @@ then
 			XMLPARSER_DIR=${XMLPARSER_DIR} \
 			LOGGING_UTIL_DIR=${LOGGING_UTIL_DIR} \
 			ENABLE_JAVACALL_TEST=${ENABLE_JAVACALL_TEST} \
+			ENABLE_CLDC_8=${ENABLE_CLDC_8} \
 			${DEBUG_OPTION}
 	fi
 	if [ $? != 0 ];then

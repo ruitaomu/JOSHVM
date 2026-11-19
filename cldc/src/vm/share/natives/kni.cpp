@@ -319,7 +319,7 @@ KNIEXPORT void KNI_NewStringUTF(const char* utf8chars, jstring stringHandle) {
   SETUP_ERROR_CHECKER_ARG;
   kni_clear_handle(stringHandle); // just in case of OutOfMemory
   OopDesc *str = Universe::new_string(utf8chars, jvm_strlen(utf8chars)
-                                      _KNI_CHECK)
+                                      _KNI_CHECK);
   kni_set_handle(stringHandle, str);
 }
 

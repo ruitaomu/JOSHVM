@@ -629,22 +629,31 @@ void ConstantPool::resolve_helper_0(int index, Symbol* name, Symbol* signature,
   }
 
 
-  if (ConstantTag::is_unresolved_klass(tag_value_at(class_index))) {
-    if (klass != NULL) {
-      *klass = klass_at(class_index JVM_NO_CHECK_AT_BOTTOM);
+  {
+    // The owner class may be an array class. Callers of the InstanceClass
+    // variant (field and interface method resolution) cannot handle one,
+    // and an array class has neither fields nor interface methods.
+    JavaClass::Raw k;
+    if (ConstantTag::is_unresolved_klass(tag_value_at(class_index))) {
+      if (klass == NULL) {
+        *klass_name = unchecked_unresolved_klass_at(class_index);
+        return;
+      }
+      k = klass_at(class_index JVM_CHECK);
     } else {
-      *klass_name = unchecked_unresolved_klass_at(class_index);
+      GUARANTEE(ConstantTag::is_resolved_klass(tag_value_at(class_index)), 
+                "sanity");
+      jint class_id = int_field(offset_from_index(class_index));
+      k = Universe::class_from_id(class_id);
+      if (klass == NULL) {
+        *klass_name = k().name();
+        return;
+      }
     }
-  } else {
-    GUARANTEE(ConstantTag::is_resolved_klass(tag_value_at(class_index)), 
-              "sanity");
-    jint class_id = int_field(offset_from_index(class_index));
-    JavaClass::Raw k = Universe::class_from_id(class_id);
-    if (klass != NULL) {
-      *klass = k.obj();
-    } else {
-      *klass_name = k().name();
+    if (!k().is_instance_class()) {
+      Throw::incompatible_class_change_error(class_changed JVM_THROW);
     }
+    *klass = k.obj();
   }
   return;
 

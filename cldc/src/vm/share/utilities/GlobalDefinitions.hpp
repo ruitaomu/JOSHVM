@@ -773,7 +773,12 @@ inline intptr_t align_size_down(intptr_t size, intptr_t alignment) {
 // Miscellaneous
 
 #define JAVA_MIN_SUPPORTED_VERSION           45
-#define JAVA_MAX_SUPPORTED_VERSION           48
+#define JAVA_MAX_SUPPORTED_VERSION           51
+// Class files of this version and later carry a StackMapTable attribute
+// instead of the CLDC StackMap attribute.
+#define JAVA_STACKMAPTABLE_VERSION           50
+// First version in which ldc/ldc_w may load a CONSTANT_Class.
+#define JAVA_LDC_CLASS_VERSION               49
 
 #ifdef ARM
 #define RESCHEDULE_COUNT 0x8000
@@ -1194,7 +1199,12 @@ inline jint construct_jint_from_jushorts(jushort high, jushort low) {
 }
 
 
-#define _IGNORE_ME_(x)
+// The trap macros below end with "_IGNORE_ME_(0" and rely on the ")" that
+// follows them in the source. This must not be a function-like macro:
+// current Visual C++ rejects a macro invocation that starts inside one
+// macro expansion and is completed by the surrounding source. Expanding to
+// a cast makes "_IGNORE_ME_(0" plus that ")" the empty statement "(void)(0)".
+#define _IGNORE_ME_ (void)
 #define CURRENT_HAS_PENDING_EXCEPTION (jvm_fast_globals.current_pending_exception)
 
 #ifndef PRODUCT
@@ -1464,6 +1474,8 @@ typedef class OopDesc* ReturnOop;
                                    " object") \
  template(ve_bad_instr,            "Illegal byte code (possibly an optimized" \
                                    " or fast bytecode)") \
+ template(ve_ldc_class_version,    "ldc of a class constant requires class" \
+                                   " file version 49") \
  template(ve_expect_array,         "Arraylength on non-array") \
  template(ve_multianewarray,       "Bad dimension of constant pool for" \
                                    " multianewarray") \
@@ -1529,6 +1541,10 @@ typedef class OopDesc* ReturnOop;
                                    "Duplicate StackMap attribute") \
  template(bad_stackmap_attribute_size, \
                                    "Bad Stackmap attribute size") \
+ template(bad_stackmap_frame_type, "Bad StackMapTable - unknown frame type") \
+ template(bad_stackmap_offset,     "Bad StackMapTable - offset out of range") \
+ template(invokedynamic_not_supported, \
+                                   "invokedynamic is not supported") \
  template(duplicate_exception_table, \
                                    "Duplicate exception table in .class" \
                                    " file") \
@@ -2034,6 +2050,7 @@ extern "C" {
 
   OopDesc * multianewarray(JVM_SINGLE_ARG_TRAPS);
   OopDesc * newobject(JVM_SINGLE_ARG_TRAPS);
+  OopDesc * compiled_code_ldc_class(Thread* thread, int class_id JVM_TRAPS);
   OopDesc* _newobject(Thread* thread, OopDesc* raw_klass JVM_TRAPS);
 
   jlong jvm_lmul(jlong a, jlong b);

@@ -695,6 +695,11 @@ void StackmapGenerator::push_obj(Oop* /*val*/ JVM_TRAPS) {
   push(T_OBJECT);
 }
 
+void StackmapGenerator::push_class_constant(int /*cp_index*/ JVM_TRAPS) {
+  JVM_IGNORE_TRAPS;
+  push(T_OBJECT);
+}
+
 void StackmapGenerator::load_local(BasicType kind, int /*index*/ JVM_TRAPS)
 {
   JVM_IGNORE_TRAPS;
