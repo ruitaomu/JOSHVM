@@ -100,6 +100,11 @@ jobs:
               mingw-w64-i686-toolchain mingw-w64-i686-gcc \
               mingw-w64-i686-binutils \
               make zip unzip findutils
+            for tool in as ar dlltool ld nm objcopy ranlib strip windres; do
+              if [ -x "/mingw32/bin/$tool.exe" ] && [ ! -e "/mingw32/bin/i686-w64-mingw32-$tool.exe" ]; then
+                ln -s "/mingw32/bin/$tool.exe" "/mingw32/bin/i686-w64-mingw32-$tool.exe"
+              fi
+            done
             command -v gcc
             gcc -dumpmachine
             command -v i686-w64-mingw32-gcc
