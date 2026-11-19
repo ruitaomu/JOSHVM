@@ -91,6 +91,8 @@ jobs:
       - name: Build and test Win32 i386 with MinGW-w64
         shell: pwsh
         run: |
+          $ErrorActionPreference = "Continue"
+          $PSNativeCommandUseErrorActionPreference = $false
           # Complete MSYS2's first-run setup in a separate invocation.
           & C:\msys64\usr\bin\bash.exe --login -lc 'true'
           if ($LASTEXITCODE -ne 0) {
