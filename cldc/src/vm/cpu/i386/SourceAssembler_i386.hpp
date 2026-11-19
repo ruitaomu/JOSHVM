@@ -26,7 +26,7 @@
 
 #ifndef PRODUCT
 
-#if defined(LINUX) || defined (CYGWIN)
+#if defined(LINUX) || defined(CYGWIN) || (defined(WIN32) && defined(__GNUC__))
 #define USE_INVERTED_ORDER 1
 #endif
 

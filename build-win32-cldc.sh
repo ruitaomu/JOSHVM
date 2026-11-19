@@ -46,6 +46,16 @@ unset ERASE_BUILD_OUTPUT
 unset BUILD_MIDP
 USE_NAMS=false
 ENABLE_THUMB=false
+WIN32_TOOLCHAIN=${WIN32_TOOLCHAIN:-vc}
+JAVACALL_TOOLCHAIN=${WIN32_TOOLCHAIN}
+export WIN32_TOOLCHAIN JAVACALL_TOOLCHAIN
+case "${WIN32_TOOLCHAIN}" in
+	vc|mingw) ;;
+	*)
+		echo "Unsupported WIN32_TOOLCHAIN: ${WIN32_TOOLCHAIN} (use vc or mingw)" >&2
+		exit 2
+		;;
+esac
 ENABLE_JSR_120=true
 ENABLE_JSR_75=true
 ENABLE_JAMS=true
@@ -64,7 +74,22 @@ ENABLE_MEDIA=true
 # environment to skip it.
 : ${BUILD_SDK:=true}
 : ${ENABLE_CLDC_8:=false}
-export USE_CYGWIN=true
+if [ "${WIN32_TOOLCHAIN}" = "mingw" ]; then
+	export USE_CYGWIN=false
+	if [ -z "${COMPILER_PATH:-}" ]; then
+		MINGW_CC=`command -v "${MINGW32_PREFIX:-i686-w64-mingw32-}gcc"`
+		if [ -n "${MINGW_CC}" ]; then
+			MINGW_BIN=`dirname "${MINGW_CC}"`
+			if [ -x "${MINGW_BIN}/as.exe" ] && [ -x "${MINGW_BIN}/ld.exe" ]; then
+				COMPILER_PATH=`cygpath -m "${MINGW_BIN}"`
+				MINGW_TOOL_BIN=${COMPILER_PATH}
+				export COMPILER_PATH MINGW_TOOL_BIN
+			fi
+		fi
+	fi
+else
+	export USE_CYGWIN=true
+fi
 
 while getopts \?J:CTcdDehjmnpr: c
 do
@@ -133,8 +158,17 @@ JSR280_DIR=${WS_ROOT}/jsr280
 MEDIA_DIR=${WS_ROOT}/media
 XMLPARSER_DIR=${WS_ROOT}/xmlparser
 
-JAVACALL_OUTPUT_DIR=${JAVACALL_DIR}/configuration/phoneMEFeature/win32_x86/output
-PCSL_OUTPUT_DIR=${PCSL_DIR}/output
+if [ "${WIN32_TOOLCHAIN}" = "mingw" ]; then
+	JAVACALL_OUTPUT_DIR=${JAVACALL_DIR}/configuration/phoneMEFeature/win32_x86/output_mingw
+	PCSL_OUTPUT_DIR=${PCSL_DIR}/output_mingw
+	CLDC_BUILD_DIR=${CLDC_DIR}/build/javacall_i386_mingw
+	PCSL_PLATFORM=javacall_i386_mingw
+else
+	JAVACALL_OUTPUT_DIR=${JAVACALL_DIR}/configuration/phoneMEFeature/win32_x86/output
+	PCSL_OUTPUT_DIR=${PCSL_DIR}/output
+	CLDC_BUILD_DIR=${CLDC_DIR}/build/javacall_i386_vc
+	PCSL_PLATFORM=javacall_i386_vc
+fi
 
 if [ "${BUILD_JAVACALL_IMPL}" = "true" ]
 then
@@ -180,7 +214,7 @@ then
 	if [ "${ERASE_BUILD_OUTPUT}" != "true" ]; then
 	    echo "Building:    ${BUILDMODULE}"
 		make JAVACALL_OUTPUT_DIR=${JAVACALL_OUTPUT_DIR} \
-			PCSL_PLATFORM=javacall_i386_vc \
+			PCSL_PLATFORM=${PCSL_PLATFORM} \
 			PCSL_OUTPUT_DIR=${PCSL_OUTPUT_DIR} \
 			ENABLE_THUMB=${ENABLE_THUMB} \
             DEFAULT_POOL_SIZE=${DEFAULT_POOL_SIZE} \
@@ -194,7 +228,7 @@ fi
 
 if [ "${BUILD_CLDC}" = "true" ]
 then
-	BUILDMODULE=${CLDC_DIR}/build/javacall_i386_vc
+	BUILDMODULE=${CLDC_BUILD_DIR}
 	cd ${BUILDMODULE}
 	if [ "${CLEAN}" = "true" ]; then
 		echo "Cleaning:    ${BUILDMODULE}"
@@ -251,7 +285,7 @@ fi
 
 if [ "${BUILD_SDK}" = "true" ]
 then
-	BUILDMODULE=${CLDC_DIR}/build/javacall_i386_vc
+	BUILDMODULE=${CLDC_BUILD_DIR}
 	cd ${BUILDMODULE}
 	echo "Cleaning:    Java Document"
 	rm -rf ${JAVADOC_OUTPUT_DIR}

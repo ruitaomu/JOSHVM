@@ -749,7 +749,8 @@ $(GEN_DIR)/platform:
 
 $(DEPEND_TIMESTAMP): $(BUILDTOOL_JAR) \
                      $(GEN_DIR)/platform \
-		     $(IncludeDB)
+		     $(IncludeDB) \
+		     $(wildcard $(BuildSpace)/$(BUILD_DIR_NAME)/$(BUILD_DIR_NAME).cfg)
 	$(A)if test ! -d $(GEN_DIR)/incls; then \
 	    mkdir $(GEN_DIR)/incls; \
 	fi
@@ -1987,7 +1988,7 @@ GCC_PREFIX_mips    = $(GNU_TOOLS_DIR)/bin/$(GNU_TOOLS_PREFIX)
 GCC_PREFIX_thumb2  = $(GNU_TOOLS_DIR)/bin/$(GNU_TOOLS_PREFIX)
 GCC_PREFIX_xtensa  = $(GNU_TOOLS_DIR)/bin/$(GNU_TOOLS_PREFIX)
 endif
-GCC_PREFIX_i386    =
+GCC_PREFIX_i386    = $(GNU_TOOLS_PREFIX)
 GCC_PREFIX_sparc   =
 GCC_PREFIX_powerpc =
 GCC_PREFIX_c       = $(GCC_PREFIX_$(target_arch))
@@ -2015,7 +2016,11 @@ endif
  CPP_gcc           = $(GCC_PREFIX)g++$(GCC_POSTFIX)
  CC_gcc            = $(GCC_PREFIX)gcc$(GCC_POSTFIX)
  LINK_gcc          = $(GCC_PREFIX)g++$(GCC_POSTFIX)
+ifeq ($(host_os), win32)
+ LIBMGR_gcc        = $(GCC_PREFIX)gcc-ar $(if $(MINGW_TOOL_BIN),-B$(MINGW_TOOL_BIN)/)
+else
  LIBMGR_gcc        = $(GCC_PREFIX)ar
+endif
 
 else
 

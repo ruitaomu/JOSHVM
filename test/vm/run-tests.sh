@@ -30,9 +30,15 @@ case `uname -s 2>/dev/null` in
     # javac, java and the VM are native Windows programs: give them
     # C:/... paths, which the shell tools accept as well.
     ROOT=`cygpath -m "$ROOT"`
-    : ${VM_DIR:=$ROOT/cldc/build/javacall_i386_vc/dist/bin}
-    : ${VMS:="cldc_vm_g.exe cldc_vm.exe"}
-    : ${PREVERIFY:=$ROOT/cldc/build/javacall_i386_vc/dist/bin/preverify.exe}
+    if [ "${WIN32_TOOLCHAIN:=vc}" = mingw ]; then
+      : ${VM_DIR:=$ROOT/cldc/build/javacall_i386_mingw/dist/bin}
+      : ${VMS:="cldc_vm_g.exe cldc_vm.exe"}
+      : ${PREVERIFY:=$ROOT/cldc/build/javacall_i386_mingw/dist/bin/preverify.exe}
+    else
+      : ${VM_DIR:=$ROOT/cldc/build/javacall_i386_vc/dist/bin}
+      : ${VMS:="cldc_vm_g.exe cldc_vm.exe"}
+      : ${PREVERIFY:=$ROOT/cldc/build/javacall_i386_vc/dist/bin/preverify.exe}
+    fi
     ;;
   *)
     : ${VM_DIR:=$ROOT/cldc/build/javacall_i386_gcc/dist/bin}

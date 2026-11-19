@@ -40,7 +40,9 @@
 #ifdef CYGWIN
 #define __try
 #define __except(e)
-// IMPL_NOTE: consider whether it is needed here 
+#endif
+
+#if defined(__GNUC__)
 #ifndef SIGBREAK
 #define SIGBREAK 21
 #endif
@@ -135,10 +137,15 @@ int CheckException(int n_except, LPEXCEPTION_POINTERS exptr) {
 
   if (!printing_stack && PrintStackTraceOnCrash) {
     printing_stack = 1;
+#if defined(__GNUC__) && !defined(CYGWIN)
+    pss();
+#else
     __try {
       pss();
     }
     __except (EXCEPTION_EXECUTE_HANDLER) {;}
+#endif
+    printing_stack = 0;
   }
 
   if (ExitOnCrash) {
@@ -150,9 +157,22 @@ int CheckException(int n_except, LPEXCEPTION_POINTERS exptr) {
   return EXCEPTION_CONTINUE_SEARCH;
 }
 
+#if defined(__GNUC__) && !defined(CYGWIN)
+static LONG WINAPI VectoredExceptionHandler(PEXCEPTION_POINTERS exptr) {
+  return CheckException(exptr->ExceptionRecord->ExceptionCode, exptr);
+}
+#endif
+
 static int executeVM( void ) {
 #ifndef PRODUCT
   signal(SIGBREAK, SigBreakHandler);
+#endif
+#if defined(__GNUC__) && !defined(CYGWIN)
+  void *exception_handler = AddVectoredExceptionHandler(
+      1, VectoredExceptionHandler);
+  if (exception_handler == NULL) {
+    return 0;
+  }
 #endif
 
   if (SlaveMode) {
@@ -165,13 +185,20 @@ static int executeVM( void ) {
     if (Verbose) {
       tty->print_cr("\t***Starting VM***");
     }
+#if defined(__GNUC__) && !defined(CYGWIN)
+    result = JVM::start();
+#else
     __try {
       result = JVM::start();
     }
     __except (CheckException(GetExceptionCode(), GetExceptionInformation())) {
       ;
     }
+#endif
   }
+#if defined(__GNUC__) && !defined(CYGWIN)
+  RemoveVectoredExceptionHandler(exception_handler);
+#endif
   Arguments::finalize();
   return result;
 }

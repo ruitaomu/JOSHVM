@@ -226,7 +226,11 @@ void invoke_entry_double_return() {}
 void default_return_point() {}
 #endif
 
+#if defined(WIN32) && defined(__GNUC__)
+jint assembler_loop_type = 1;
+#else
 jint assembler_loop_type;
+#endif
 jint _bytecode_counter = 0;
 
 unsigned char _protected_page[1];

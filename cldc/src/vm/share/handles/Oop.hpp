@@ -779,9 +779,8 @@ private:
 
 public:
   /// Default constructor.
-  UsingFastOops() { 
+  UsingFastOops() : _previous(_last_handle) {
     AZZERT_ONLY(pre_fast_oops_verification();)
-     _previous = _last_handle; 
   }
   /// Default destructor.
   ~UsingFastOops() { 
