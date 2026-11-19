@@ -1,15 +1,15 @@
 # JOSHVM 升级到 Java ME 8 的详细设计
 
-状态：P1（VM 核心）和 P2 的主体（语言特性所需的类库）已在 Linux i386 目标上实现并通过测试，
+状态：P1（VM 核心）和 P2 的主体（语言特性所需的类库）已在 Linux i386 和 Win32 i386 目标上实现并通过测试，
 见下面的"实施状态"。P3、P4 未开始。
 
-## 实施状态（2026-11-18）
+## 实施状态（2026-11-19）
 
 ### 已实现并验证
 
-验证环境：Ubuntu 24.04、gcc 13、OpenJDK 8，32 位程序在 `qemu-i386` 下运行（这台机器的内核不能直接执行
-32 位程序）。`test/vm/run-tests.sh` 在 debug（`cldc_vm_g`）和 product（`cldc_vm`）两个 VM、
-JIT 和 `-int` 两种模式下全部通过，两种类库配置都跑过。
+验证环境：Ubuntu 24.04、gcc 13 和 Windows/MSVC、OpenJDK 8。Linux 上的 32 位程序在
+`qemu-i386` 下运行。`test/vm/run-tests.sh` 在 debug（`cldc_vm_g`）和 product（`cldc_vm`）两个 VM、
+动态 JIT、`-int` 和强制编译 `-comp` 三种模式下全部通过，两种类库配置都跑过。
 
 | 项 | 实现 |
 |---|---|
@@ -38,8 +38,8 @@ JDK_DIR=<JDK 8> test/vm/run-tests.sh
 - `PREVERIFY_ORIGINAL=<路径>`：换用自己编译的 `preverify`。仓库里预编译的那个在这台机器上不报错也不产生输出，
   需要从 `preverifier/build/linux` 编译（见 `tools/docker/linux-i386/build-and-test.sh`）。
 - `HOST_EXE_RUN=qemu-i386`：在不能直接执行 32 位程序的机器上运行 preverify、loopgen、romgen 和测试。
-- `tools/docker/linux-i386/` 和 `.github/workflows/build-linux-i386.yml` 把上述步骤打包了，
-  但**镜像和工作流本身都还没有运行过**。
+- `tools/docker/linux-i386/` 和 `.github/workflows/build-i386.yml` 把上述 Linux 和 Win32 i386
+  步骤打包了。后者的两个任务分别构建并测试默认类库和 `ENABLE_CLDC_8=true` 类库。
 
 为了让基线在现在的工具链上能构建和运行，另外改了这些地方：
 
@@ -392,7 +392,7 @@ ROM 和静态 RAM 的增量并记录在本文档。P3 的类库按包分组，�
 - 新建顶层 `test/vm/`，或放到 `tests.make` 期望的位置（需先读 `tests.make` 确认路径）。
 - 运行平台：Linux i386，同时跑 C 解释器（`arch = c`）和 i386 汇编解释器加 JIT 两种配置。
 - 每个用例是一个带 `main` 的类，输出固定的通过标记；脚本汇总结果。
-- 在此基础上接入 CI（Linux i386 构建加冒烟测试）。
+- 在此基础上接入 CI（Linux i386 和 Win32 i386 构建加冒烟测试）。
 
 ### 8.2 用例
 

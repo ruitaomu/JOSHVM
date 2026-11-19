@@ -1,4 +1,7 @@
-name: Build and test Linux i386
+name: Build and test i386 targets
+
+# Keep i386-specific Linux and Win32 jobs together in this workflow. Use a
+# separate workflow file for another architecture or an unrelated CI concern.
 
 on:
   workflow_dispatch:
