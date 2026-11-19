@@ -25,7 +25,8 @@
 #ifndef __JAVACALL_PLATFORM_DEFINE_H_
 #define __JAVACALL_PLATFORM_DEFINE_H_
 
-#if defined(__MINGW32__) || defined(__MINGW64__)
+#if defined(_MSC_VER)
+#else
 #include <stdint.h>
 #endif
 
@@ -68,50 +69,50 @@ typedef unsigned short javacall_utf16;
  * @typedef javacall_uint16
  * @brief 16 bit unsigned interger type
  */
-#if defined(__MINGW32__) || defined(__MINGW64__)
-typedef uint16_t javacall_uint16;
-#else
+#if defined(_MSC_VER)
 typedef unsigned __int16 javacall_uint16;
+#else
+typedef uint16_t javacall_uint16;
 #endif
 
 /**
  * @typedef javacall_uint32
  * @brief 32 bit unsigned interger type
  */
-#if defined(__MINGW32__) || defined(__MINGW64__)
-typedef uint32_t javacall_uint32;
-#else
+#if defined(_MSC_VER)
 typedef unsigned __int32 javacall_uint32;
+#else
+typedef uint32_t javacall_uint32;
 #endif
 
 /**
  * @typedef javacall_uint64
  * @brief 64 bit unsigned integer type
  */
-#if defined(__MINGW32__) || defined(__MINGW64__)
-typedef uint64_t javacall_uint64;
-#else
+#if defined(_MSC_VER)
 typedef unsigned __int64 javacall_uint64;
+#else
+typedef uint64_t javacall_uint64;
 #endif
 
 /**
  * @typedef javacall_int32
  * @brief 32 bit interger type
  */
-#if defined(__MINGW32__) || defined(__MINGW64__)
-typedef int32_t javacall_int32;
-#else
+#if defined(_MSC_VER)
 typedef __int32 javacall_int32;
+#else
+typedef int32_t javacall_int32;
 #endif
 
 /**
  * @typedef javacall_int64
  * @brief 64 bit interger type
  */
-#if defined(__MINGW32__) || defined(__MINGW64__)
-typedef int64_t javacall_int64;
-#else
+#if defined(_MSC_VER)
 typedef __int64 javacall_int64;
+#else
+typedef int64_t javacall_int64;
 #endif
 
 /**
