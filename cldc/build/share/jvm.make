@@ -1987,7 +1987,7 @@ GCC_PREFIX_mips    = $(GNU_TOOLS_DIR)/bin/$(GNU_TOOLS_PREFIX)
 GCC_PREFIX_thumb2  = $(GNU_TOOLS_DIR)/bin/$(GNU_TOOLS_PREFIX)
 GCC_PREFIX_xtensa  = $(GNU_TOOLS_DIR)/bin/$(GNU_TOOLS_PREFIX)
 endif
-GCC_PREFIX_i386    =
+GCC_PREFIX_i386    = $(GNU_TOOLS_PREFIX)
 GCC_PREFIX_sparc   =
 GCC_PREFIX_powerpc =
 GCC_PREFIX_c       = $(GCC_PREFIX_$(target_arch))

@@ -1,0 +1,26 @@
+#
+# Native 32-bit Win32 PCSL platform using MinGW-w64 GCC.
+#
+
+PCSL_OS=javacall
+PCSL_CPU=i386
+
+FILE_MODULE=javacall
+NETWORK_MODULE=javacall
+MEMORY_PORT_MODULE=javacall
+MEMORY_MODULE=heap
+PRINT_MODULE=javacall
+
+MINGW32_PREFIX?=i686-w64-mingw32-
+
+include $(PCSL_DIR)/makefiles/share/gcc.gmk
+include $(PCSL_DIR)/makefiles/share/win32.gmk
+include $(PCSL_DIR)/makefiles/share/javacall.gmk
+
+CC=$(MINGW32_PREFIX)gcc
+CPP=$(MINGW32_PREFIX)g++
+LD=$(MINGW32_PREFIX)g++
+AR=$(MINGW32_PREFIX)ar -rc
+
+CFLAGS+=-m32 -DWIN32
+LD_FLAGS+=-m32
