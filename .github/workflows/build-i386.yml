@@ -94,7 +94,7 @@ jobs:
           $ErrorActionPreference = "Continue"
           $PSNativeCommandUseErrorActionPreference = $false
           # Complete MSYS2's first-run setup in a separate invocation.
-          & C:\msys64\usr\bin\bash.exe --login -lc 'true'
+          cmd.exe /d /c 'C:\msys64\usr\bin\bash.exe --login -lc "true" || exit /b 0'
           if ($LASTEXITCODE -ne 0) {
             Write-Host "MSYS2 first-run setup completed; retrying shell."
           }
