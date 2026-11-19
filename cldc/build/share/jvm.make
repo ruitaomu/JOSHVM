@@ -749,7 +749,8 @@ $(GEN_DIR)/platform:
 
 $(DEPEND_TIMESTAMP): $(BUILDTOOL_JAR) \
                      $(GEN_DIR)/platform \
-		     $(IncludeDB)
+		     $(IncludeDB) \
+		     $(wildcard $(BuildSpace)/$(BUILD_DIR_NAME)/$(BUILD_DIR_NAME).cfg)
 	$(A)if test ! -d $(GEN_DIR)/incls; then \
 	    mkdir $(GEN_DIR)/incls; \
 	fi
@@ -2016,7 +2017,7 @@ endif
  CC_gcc            = $(GCC_PREFIX)gcc$(GCC_POSTFIX)
  LINK_gcc          = $(GCC_PREFIX)g++$(GCC_POSTFIX)
 ifeq ($(host_os), win32)
- LIBMGR_gcc        = $(GCC_PREFIX)gcc-ar
+ LIBMGR_gcc        = $(GCC_PREFIX)gcc-ar $(if $(MINGW_TOOL_BIN),-B$(MINGW_TOOL_BIN)/)
 else
  LIBMGR_gcc        = $(GCC_PREFIX)ar
 endif

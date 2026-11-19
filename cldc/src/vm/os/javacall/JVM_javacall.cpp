@@ -405,6 +405,13 @@ void javanotify_datagram_event(
 
 }
 
+#if ENABLE_JSR_75
+#include "javacall_fileconnection.h"
+
+void javanotify_fileconnection_root_changed(void) {
+}
+#endif
+
 /*
 #include "javacall_cbs.h"
 
@@ -441,23 +448,6 @@ extern "C" void javanotify_gpio_pin_closed(const javacall_handle h) {
 
 	javacall_event_send((unsigned char*)&rd, sizeof(SNIReentryData));
 }
-
-#if ENABLE_DIRECTUI
-#include "javacall_directui.h"
-
-extern "C" void javanotify_key_event(javacall_keypress_code key,
-        javacall_keypress_type type) {
-    SNIReentryData rd;
-
-    rd.status = JAVACALL_OK;
-    rd.descriptor = (int)key;
-    rd.pContext = (void*)type;
-    rd.waitingFor = KEY_SIGNAL;
-
-    javacall_event_send((unsigned char*)&rd, sizeof(SNIReentryData));
-}
-#endif
-
 
 #if ENABLE_SECURITY_NATIVE_RSA_SIGNATURE
 #include "javacall_security.h"

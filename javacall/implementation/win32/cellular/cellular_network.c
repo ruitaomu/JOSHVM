@@ -18,6 +18,7 @@
  * Please visit www.joshvm.org if you need additional information or
  * have any questions.
  */
+#include <string.h>
 #include <javacall_cellular_network.h>
 #include <javacall_properties.h>
 

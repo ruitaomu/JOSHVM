@@ -193,9 +193,9 @@ int getBitsize(int numBytes,int bitSizeofChar){
  */
 
 int javacall_sms_get_number_of_segments(
-        javacall_sms_encoding   msgType, 
-        signed char*            msgBuffer, 
-        int                     msgBufferLen, 
+        javacall_sms_encoding   msgType,
+        char*                   msgBuffer,
+        int                     msgBufferLen,
         javacall_bool           hasPort) {
 
     int fragmentSize, headSize, segments;

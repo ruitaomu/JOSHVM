@@ -409,7 +409,7 @@ static javacall_result
 wincomm_serial_read(javacall_handle hPort, unsigned char* buffer, int size, int *byteRead)
 {
 	platform_comm_handle* pHandle = (platform_comm_handle*)hPort;
-	int num = 0;
+	DWORD num = 0;
 
 	// int nByteAvailable = pHandle->bytesInBuffer;
 	// if (nByteAvailable > 0) {
@@ -442,7 +442,7 @@ wincomm_serial_read(javacall_handle hPort, unsigned char* buffer, int size, int 
 		if (num > 0) {
 			memcpy(buffer, &(pHandle->buffer[0]), num);
         }
-        *byteRead = num;
+        *byteRead = (int)num;
         return JAVACALL_OK;
     }
 } 

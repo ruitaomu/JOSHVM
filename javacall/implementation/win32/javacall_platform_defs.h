@@ -28,6 +28,7 @@
 #if defined(_MSC_VER)
 #else
 #include <stdint.h>
+#include <string.h>
 #endif
 
 /**

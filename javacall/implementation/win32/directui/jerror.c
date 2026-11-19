@@ -51,6 +51,7 @@
 #ifdef USE_WINDOWS_MESSAGEBOX
 #include <windows.h>
 #else
+#include "javacall_logging.h"
 #define pcsl_print javacall_print
 #endif
 

@@ -76,6 +76,17 @@ ENABLE_MEDIA=true
 : ${ENABLE_CLDC_8:=false}
 if [ "${WIN32_TOOLCHAIN}" = "mingw" ]; then
 	export USE_CYGWIN=false
+	if [ -z "${COMPILER_PATH:-}" ]; then
+		MINGW_CC=`command -v "${MINGW32_PREFIX:-i686-w64-mingw32-}gcc"`
+		if [ -n "${MINGW_CC}" ]; then
+			MINGW_BIN=`dirname "${MINGW_CC}"`
+			if [ -x "${MINGW_BIN}/as.exe" ] && [ -x "${MINGW_BIN}/ld.exe" ]; then
+				COMPILER_PATH=`cygpath -m "${MINGW_BIN}"`
+				MINGW_TOOL_BIN=${COMPILER_PATH}
+				export COMPILER_PATH MINGW_TOOL_BIN
+			fi
+		fi
+	fi
 else
 	export USE_CYGWIN=true
 fi
