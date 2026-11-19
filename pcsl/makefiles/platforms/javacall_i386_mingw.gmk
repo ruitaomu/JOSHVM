@@ -20,7 +20,7 @@ include $(PCSL_DIR)/makefiles/share/javacall.gmk
 CC=$(MINGW32_PREFIX)gcc
 CPP=$(MINGW32_PREFIX)g++
 LD=$(MINGW32_PREFIX)g++
-AR=$(MINGW32_PREFIX)ar -rc
+AR=$(MINGW32_PREFIX)gcc-ar -rc
 
 CFLAGS+=-m32 -DWIN32
 LD_FLAGS+=-m32

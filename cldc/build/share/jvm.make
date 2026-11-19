@@ -2015,7 +2015,11 @@ endif
  CPP_gcc           = $(GCC_PREFIX)g++$(GCC_POSTFIX)
  CC_gcc            = $(GCC_PREFIX)gcc$(GCC_POSTFIX)
  LINK_gcc          = $(GCC_PREFIX)g++$(GCC_POSTFIX)
+ifeq ($(host_os), win32)
+ LIBMGR_gcc        = $(GCC_PREFIX)gcc-ar
+else
  LIBMGR_gcc        = $(GCC_PREFIX)ar
+endif
 
 else
 
