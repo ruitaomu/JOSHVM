@@ -61,7 +61,7 @@ KNIEXPORT
 KNI_RETURNTYPE_INT
 Java_com_joshvm_media_PlayerImpl_open0()
 {
-    int handle;
+    int handle = -1;
 #if ENABLE_PCSL
     int type;
     javacall_result result = JAVACALL_FAIL;
@@ -309,7 +309,7 @@ KNIEXPORT
 KNI_RETURNTYPE_INT
 Java_com_joshvm_media_PlayerImpl_getState0()
 {
-    int state;
+    int state = -1;
 #if ENABLE_PCSL
     int handle;
     javacall_result result = JAVACALL_FAIL;
@@ -327,7 +327,7 @@ KNIEXPORT
 KNI_RETURNTYPE_INT
 Java_com_joshvm_media_PlayerImpl_getMediaTime0()
 {
-    int time;
+    int time = -1;
 #if ENABLE_PCSL
     int handle;
     javacall_result result = JAVACALL_FAIL;
@@ -366,7 +366,7 @@ KNIEXPORT
 KNI_RETURNTYPE_INT
 Java_com_joshvm_media_PlayerImpl_getDuration0()
 {
-    int duration;
+    int duration = -1;
 #if ENABLE_PCSL
     int handle;
     javacall_result result = JAVACALL_FAIL;
@@ -499,7 +499,7 @@ KNIEXPORT
 KNI_RETURNTYPE_INT
 Java_com_joshvm_media_PlayerImpl_getBufferSize0()
 {
-    int size;
+    int size = -1;
 #if ENABLE_PCSL
     int handle;
     javacall_result result = JAVACALL_FAIL;
@@ -687,7 +687,7 @@ KNIEXPORT
 KNI_RETURNTYPE_INT
 Java_org_joshvm_media_AudioManager_getMaxVolume0()
 {
-    int volume;
+    int volume = -1;
 #if ENABLE_PCSL
     javacall_result result = JAVACALL_FAIL;
 
@@ -703,7 +703,7 @@ KNIEXPORT
 KNI_RETURNTYPE_INT
 Java_org_joshvm_media_AudioManager_getCurrentVolume0()
 {
-    int volume;
+    int volume = -1;
 #if ENABLE_PCSL
     javacall_result result = JAVACALL_FAIL;
 
@@ -831,7 +831,7 @@ KNIEXPORT
 KNI_RETURNTYPE_INT
 Java_org_joshvm_media_WakeUpManager_getWordCount()
 {
-    int count;
+    int count = -1;
 #if ENABLE_PCSL
     javacall_result result = JAVACALL_FAIL;
 

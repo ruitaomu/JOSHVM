@@ -27,9 +27,22 @@
 
 #if ENABLE_PCSL
 #include "javacall_directui.h"
+#include "javacall_events.h"
 #include <PCSLString_Util.h>
 #include <pcsl_memory.h>
 #include <pcsl_string.h>
+
+void javanotify_key_event(javacall_keypress_code key,
+        javacall_keypress_type type) {
+    SNIReentryData rd;
+
+    rd.status = JAVACALL_OK;
+    rd.descriptor = (int)key;
+    rd.pContext = (void*)type;
+    rd.waitingFor = KEY_SIGNAL;
+
+    javacall_event_send((unsigned char*)&rd, sizeof(SNIReentryData));
+}
 
 static int get_pcsl_string(jobject stringHandle, pcsl_string ** string)
 {

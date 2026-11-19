@@ -143,6 +143,16 @@ struct _javacall_mutex* javacall_os_mutex_create() {
         PRINT_ERROR(malloc, "No memory", 0);
         return NULL;
     }
+#ifdef __GNUC__
+    if (!InitializeCriticalSectionAndSpinCount(&m->crit, 0)) {
+        free(m);
+        return NULL;
+    }
+#ifndef NDEBUG
+    m->locked = 0;
+#endif
+    return m;
+#else
     __try {
         InitializeCriticalSection(&m->crit);
 #ifndef NDEBUG
@@ -154,6 +164,7 @@ struct _javacall_mutex* javacall_os_mutex_create() {
         free(m);
         return NULL;
     }
+#endif
 }
 
 /* destroys the mutex */

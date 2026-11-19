@@ -82,6 +82,9 @@ extern "C" {
 #include <winsock.h>
 
 #define GET_LAST_ERROR()        WSAGetLastError()
+#ifdef EWOULDBLOCK
+#undef EWOULDBLOCK
+#endif
 #define EWOULDBLOCK             WSAEWOULDBLOCK
 #ifdef  EINPROGRESS
 #undef  EINPROGRESS

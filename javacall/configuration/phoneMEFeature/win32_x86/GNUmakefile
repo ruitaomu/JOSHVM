@@ -29,8 +29,13 @@ endif
 
 include environment.gmk
 
-#For each project specified toolchain shall be selected
+# For each project specified toolchain shall be selected.
+# Keep the legacy MSVC path and add an independent MinGW-w64 path.
+ifeq ($(JAVACALL_TOOLCHAIN),mingw)
+include $(JAVACALL_DIR)/build/mingw/rules.gmk
+else
 include $(JAVACALL_DIR)/build/vc/rules.gmk
+endif
 
 #Specific targets can be achieved before and after achievement of common targets
 #Specify these targets after including 'rules.gmk' file.

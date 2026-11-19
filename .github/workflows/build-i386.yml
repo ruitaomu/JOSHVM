@@ -75,3 +75,48 @@ jobs:
             ./build-win32-cldc.sh -C -J "$JDK_DIR"
             JDK_DIR="$JDK_DIR" test/vm/run-tests.sh
           '
+
+  win32-i386-mingw:
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 8
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "8"
+
+      - name: Build and test Win32 i386 with MinGW-w64
+        shell: pwsh
+        run: |
+          $env:MSYSTEM = "MINGW32"
+          $env:CHERE_INVOKING = "1"
+          C:\msys64\usr\bin\bash.exe -lc '
+            set -e
+            export PATH="/mingw32/bin:/usr/bin:$PATH"
+            pacman --noconfirm --needed -S \
+              mingw-w64-i686-toolchain mingw-w64-i686-gcc \
+              mingw-w64-i686-binutils \
+              make zip unzip findutils
+            for tool in as ar dlltool ld nm objcopy ranlib strip windres; do
+              if [ -x "/mingw32/bin/$tool.exe" ] && [ ! -e "/mingw32/bin/i686-w64-mingw32-$tool.exe" ]; then
+                ln -s "/mingw32/bin/$tool.exe" "/mingw32/bin/i686-w64-mingw32-$tool.exe"
+              fi
+            done
+            command -v gcc
+            gcc -dumpmachine
+            command -v i686-w64-mingw32-gcc
+            cd "$(cygpath -u "$GITHUB_WORKSPACE")"
+            export JDK_DIR="$(cygpath -m "$JAVA_HOME")"
+            export BUILD_SDK=false
+            export WIN32_TOOLCHAIN=mingw
+            export ENABLE_CLDC_8=false
+            ./build-win32-cldc.sh -C -J "$JDK_DIR"
+            JDK_DIR="$JDK_DIR" WIN32_TOOLCHAIN=mingw test/vm/run-tests.sh
+
+            export ENABLE_CLDC_8=true
+            ./build-win32-cldc.sh -C -J "$JDK_DIR"
+            JDK_DIR="$JDK_DIR" WIN32_TOOLCHAIN=mingw test/vm/run-tests.sh
+          '

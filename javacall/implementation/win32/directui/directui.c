@@ -20,6 +20,7 @@
  */
 
 #include "javacall_directui.h"
+#include "jpegdecoder.h"
 #include <windows.h>
 
 #ifdef __cplusplus
@@ -238,7 +239,7 @@ javacall_result javacall_directui_image_getsize(javacall_uint8* image_data,
 	if (type == JAVACALL_IMAGETYPE_JPG) {
 		void *info = JPEG_To_RGB_init();
 		if (info) {
-    		if (JPEG_To_RGB_decodeHeader(info, image_data, data_len, width, height)) {
+			if (JPEG_To_RGB_decodeHeader(info, (char*)image_data, data_len, width, height)) {
 				return JAVACALL_OK;
     		} else {
 				return JAVACALL_FAIL;
@@ -265,7 +266,7 @@ javacall_result javacall_directui_drawimage(int x, int y, javacall_uint8* image_
     if (type == JAVACALL_IMAGETYPE_JPG) {
 		void *info = JPEG_To_RGB_init();
 		if (info) {
-    		raw_image = JPEG_To_RGB_decode(info, image_data, data_len, &w, &h);
+			raw_image = (javacall_uint8*)JPEG_To_RGB_decode(info, (char*)image_data, data_len, &w, &h);
 			if (raw_image != NULL) {
 				unsigned char *p = raw_image;
 				for (int j = 0; j < h; j++) {
